@@ -361,6 +361,43 @@ msx_device_rescan_device_rating (MsxDevice *self, GError **error)
 }
 
 static gboolean
+msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
+{
+	g_autoptr(GBytes) response = NULL;
+	MsxDeviceBufferOffsets buffer_offsets[] = {
+		{ 0x00,		"GridVoltage" },
+		{ 0x06,		"GridFrequency" },
+		{ 0x0b,		"AcOutputVoltage" },
+		{ 0x11,		"AcOutputFrequency" },
+		{ 0x16,		"AcOutputPower" },
+		{ 0x1b,		"AcOutputActivePower" },
+		{ 0x20,		"MaximumPowerPercentage" },
+		{ 0x24,		"BusVoltage" },
+		{ 0x28,		"BatteryVoltage" },
+		{ 0x2e,		"BatteryCurrent" },
+		{ 0x32,		"BatteryCapacity" },
+		{ 0x36,		"InverterHeatSinkTemperature" },
+		{ 0x3b,		"PvInputCurrentForBattery" },
+		{ 0x40,		"PvInputVoltage" },
+		{ 0x46,		"BatteryVoltageFromScc" },
+		{ 0x4c,		"BatteryDischargeCurrent" },
+		{ 0x6a,		NULL }
+	};
+
+	/* parse the data buffer */
+	response = msx_device_send_command (self, "QPIGS", error);
+	if (response == NULL) {
+		g_prefix_error (error, "failed to get device rating: ");
+		return FALSE;
+	}
+	if (!msx_device_buffer_parse (self, response, buffer_offsets, error)) {
+		g_prefix_error (error, "QPIGS data invalid: ");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static gboolean
 msx_device_rescan_firmware_versions (MsxDevice *self, GError **error)
 {
 	gconstpointer data;
@@ -409,6 +446,8 @@ static gboolean
 msx_device_rescan_runtime (MsxDevice *self, GError **error)
 {
 	if (!msx_device_rescan_device_rating (self, error))
+		return FALSE;
+	if (!msx_device_rescan_device_general_status (self, error))
 		return FALSE;
 	return TRUE;
 }
