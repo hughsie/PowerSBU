@@ -180,7 +180,6 @@ msx_device_send_command (MsxDevice *self, const gchar *cmd, GError **error)
 
 		msx_dump_raw ("self->host", buf, actual_len);
 		data_valid = msx_device_packet_count_data (buf, actual_len);
-		g_debug ("data_valid = %" G_GSIZE_FORMAT, data_valid);
 		memcpy (buf2 + idx, buf, data_valid);
 		idx += data_valid;
 		if (data_valid <= 7)
