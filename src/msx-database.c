@@ -251,7 +251,7 @@ msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError *
 		tmp = msx_database_compare_values (val, item->val);
 		if (tmp < MSX_DATABASE_VALUE_DELTA) {
 			g_debug ("within %.2f%% of value for %s=%i->%i, ignoring",
-				 MSX_DATABASE_VALUE_DELTA, key, item->val, val);
+				 tmp, key, item->val, val);
 			return TRUE;
 		}
 		g_debug ("replacing existing %s=%i", key, val);
