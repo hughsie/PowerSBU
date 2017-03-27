@@ -37,6 +37,8 @@ struct _MsxDatabase
 	sqlite3			*db;
 };
 
+#define MSX_DATABASE_VALUE_DELTA	0.5f
+
 G_DEFINE_TYPE (MsxDatabase, msx_database, G_TYPE_OBJECT)
 
 void
@@ -216,12 +218,11 @@ msx_database_open (MsxDatabase *self, GError **error)
 	return TRUE;
 }
 
-static gboolean
+static gdouble
 msx_database_compare_values (gint val_new, gint val_old)
 {
 	gdouble pc = 100.f - (((gdouble) val_new * 100.f) / (gdouble) val_old);
-	g_debug ("pc=%.2f", pc);
-	return fabs (pc) <= 1.f;
+	return fabs (pc);
 }
 
 gboolean
@@ -242,13 +243,15 @@ msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError *
 	/* get existing cached value */
 	item = g_hash_table_lookup (self->hash, key);
 	if (item != NULL) {
+		gdouble tmp;
 		if (item->val == val) {
 			g_debug ("same value for %s=%i, ignoring", key, val);
 			return TRUE;
 		}
-		if (msx_database_compare_values (val, item->val)) {
-			g_debug ("within 1%% of value for %s=%i->%i, ignoring",
-				 key, item->val, val);
+		tmp = msx_database_compare_values (val, item->val);
+		if (tmp < MSX_DATABASE_VALUE_DELTA) {
+			g_debug ("within %.2f%% of value for %s=%i->%i, ignoring",
+				 MSX_DATABASE_VALUE_DELTA, key, item->val, val);
 			return TRUE;
 		}
 		g_debug ("replacing existing %s=%i", key, val);
