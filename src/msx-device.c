@@ -314,6 +314,42 @@ msx_device_buffer_parse (MsxDevice *self, GBytes *response,
 }
 
 static gboolean
+msx_device_buffer_parse_bits (MsxDevice *self, GBytes *response,
+			      MsxDeviceBufferOffsets *offsets,
+			      GError **error)
+{
+	/* parse each value */
+	const gchar *data = g_bytes_get_data (response, NULL);
+	for (guint i = 0; offsets[i].key != NULL; i++) {
+		if (data[offsets[i].off] == '0') {
+			if (self->database != NULL) {
+				if (!msx_database_save_value (self->database,
+							      offsets[i].key, 0,
+							      error))
+					return FALSE;
+			}
+		} else if (data[offsets[i].off] == '1') {
+			if (self->database != NULL) {
+				if (!msx_database_save_value (self->database,
+							      offsets[i].key, 1,
+							      error))
+					return FALSE;
+			}
+		} else {
+			g_set_error (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_FAILED,
+				     "failed to parse %s @%02x: %c",
+				     offsets[i].key,
+				     (guint) offsets[i].off,
+				     data[offsets[i].off]);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static gboolean
 msx_device_rescan_device_rating (MsxDevice *self, GError **error)
 {
 	g_autoptr(GBytes) response = NULL;
@@ -382,6 +418,17 @@ msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 		{ 0x4c,		"BatteryDischargeCurrent" },
 		{ 0x6a,		NULL }
 	};
+	MsxDeviceBufferOffsets buffer_bits[] = {
+		{ 0x52,		"AddSbuPriorityVersion" },
+		{ 0x53,		"ConfigurationStatusChange" },
+		{ 0x54,		"SccFirmwareVersionUpdated" },
+		{ 0x55,		"LoadStatusOn" },
+		{ 0x56,		"BatteryVoltageToSteadyWhileCharging" },
+		{ 0x57,		"ChargingOn" },
+		{ 0x58,		"ChargingOnSolar" },
+		{ 0x59,		"ChargingOnAC" },
+		{ 0x6a,		NULL }
+	};
 
 	/* parse the data buffer */
 	response = msx_device_send_command (self, "QPIGS", error);
@@ -390,6 +437,10 @@ msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 		return FALSE;
 	}
 	if (!msx_device_buffer_parse (self, response, buffer_offsets, error)) {
+		g_prefix_error (error, "QPIGS data invalid: ");
+		return FALSE;
+	}
+	if (!msx_device_buffer_parse_bits (self, response, buffer_bits, error)) {
 		g_prefix_error (error, "QPIGS data invalid: ");
 		return FALSE;
 	}
