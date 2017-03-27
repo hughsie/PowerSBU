@@ -4,6 +4,7 @@ cargs = ['-DG_LOG_DOMAIN="Msx"']
 executable(
   'msx-util',
   sources : [
+    'msx-common.c',
     'msx-context.c',
     'msx-database.c',
     'msx-device.c',
@@ -27,6 +28,7 @@ if get_option('enable-tests')
   e = executable(
     'msx-self-test',
     sources : [
+      'msx-common.c',
       'msx-database.c',
       'msx-self-test.c'
     ],

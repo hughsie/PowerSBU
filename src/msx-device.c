@@ -23,6 +23,7 @@
 
 #include <string.h>
 
+#include "msx-common.h"
 #include "msx-device.h"
 
 #define MSX_DEVICE_TIMEOUT	5000
@@ -266,6 +267,99 @@ msx_device_rescan_serial_number (MsxDevice *self, GError **error)
 	return TRUE;
 }
 
+typedef struct {
+	gsize		 off;
+	const gchar	*key;
+} MsxDeviceBufferOffsets;
+
+static gboolean
+msx_device_buffer_parse (MsxDevice *self, GBytes *response,
+			 MsxDeviceBufferOffsets *offsets,
+			 GError **error)
+{
+	const gchar *data;
+	gsize len = 0;
+	guint i;
+
+	/* check the size */
+	for (i = 0; offsets[i].key != NULL; i++);
+	data = g_bytes_get_data (response, &len);
+	if (len != offsets[i].off) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "got %" G_GSIZE_FORMAT " bytes, expected %" G_GSIZE_FORMAT,
+			     len, offsets[i].off);
+		return FALSE;
+	}
+
+	/* parse each value */
+	for (i = 0; offsets[i].key != NULL; i++) {
+		gint val = msx_common_parse_int (data, offsets[i].off, len, error);
+		if (val == G_MAXINT) {
+			g_prefix_error (error,
+					"failed to parse %s @%02x: ",
+					offsets[i].key, (guint) offsets[i].off);
+			return FALSE;
+		}
+		/* add to the database */
+		if (self->database != NULL) {
+			if (!msx_database_save_value (self->database,
+						      offsets[i].key,
+						      val,
+						      error))
+				return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static gboolean
+msx_device_rescan_device_rating (MsxDevice *self, GError **error)
+{
+	g_autoptr(GBytes) response = NULL;
+	MsxDeviceBufferOffsets buffer_offsets[] = {
+		{ 0x00,		"GridRatingVoltage" },
+		{ 0x06,		"GridRatingCurrent" },
+		{ 0x0b,		"AcOutputRatingVoltage" },
+		{ 0x11,		"AcOutputRatingFrequency" },
+		{ 0x16,		"AcOutputRatingCurrent" },
+		{ 0x1b,		"AcOutputRatingApparentPower" },
+		{ 0x20,		"AcOutputRatingActivePower" },
+		{ 0x25,		"BatteryRatingVoltage" },
+		{ 0x2a,		"BatteryRechargeVoltage" },
+		{ 0x2f,		"BatteryUnderVoltage" },
+		{ 0x34,		"BatteryBulkVoltage" },
+		{ 0x39,		"BatteryFloatVoltage" },
+		{ 0x3e,		"BatteryType" },
+		{ 0x40,		"PresentMaxAcChargingCurrent" },
+		{ 0x43,		"PresentMaxChargingCurrent" },
+		{ 0x46,		"InputVoltageRange" },
+		{ 0x48,		"OutputSourcePriority" },
+		{ 0x4a,		"ChargerSourcePriority" },
+		{ 0x4c,		"ParallelMaxNum" },
+		{ 0x4e,		"MachineType" },
+		{ 0x51,		"Topology" },
+		{ 0x53,		"OutputMode" },
+		{ 0x55,		"BatteryRedischargeVoltage" },
+		{ 0x5a,		"PvOkConditionForParallel" },
+		{ 0x5c,		"PvPowerBalance" },
+		{ 0x5d,		NULL }
+	};
+
+	/* parse the data buffer */
+	response = msx_device_send_command (self, "QPIRI", error);
+	if (response == NULL) {
+		g_prefix_error (error, "failed to get device rating: ");
+		return FALSE;
+	}
+	if (!msx_device_buffer_parse (self, response, buffer_offsets, error)) {
+		g_prefix_error (error, "QPIRI data invalid: ");
+		return FALSE;
+	}
+	return TRUE;
+}
+
 static gboolean
 msx_device_rescan_firmware_versions (MsxDevice *self, GError **error)
 {
@@ -310,11 +404,26 @@ msx_device_rescan_firmware_versions (MsxDevice *self, GError **error)
 
 	return TRUE;
 }
+
+static gboolean
+msx_device_rescan_runtime (MsxDevice *self, GError **error)
+{
+	if (!msx_device_rescan_device_rating (self, error))
+		return FALSE;
+	return TRUE;
+}
+
 static gboolean
 msx_device_poll_cb (gpointer user_data)
 {
 	MsxDevice *self = MSX_DEVICE (user_data);
+	g_autoptr(GError) error = NULL;
+
+	/* rescan stuff that can change at runtime */
 	g_debug ("poll %s", self->serial_number);
+	if (!msx_device_rescan_runtime (self, &error))
+		g_warning ("failed to rescan: %s", error->message);
+
 	return TRUE;
 }
 
@@ -358,6 +467,10 @@ msx_device_open (MsxDevice *self, GError **error)
 	if (!msx_device_rescan_serial_number (self, error))
 		return FALSE;
 	if (!msx_device_rescan_firmware_versions (self, error))
+		return FALSE;
+
+	/* initial try */
+	if (!msx_device_rescan_runtime (self, error))
 		return FALSE;
 
 	/* set up initial poll */
