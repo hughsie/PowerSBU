@@ -300,7 +300,7 @@ msx_database_query (MsxDatabase *self, const gchar *key, guint dev,
 				     "AND dev = %u "
 				     "AND ts >= %" G_GINT64_FORMAT " "
 				     "AND ts <= %" G_GINT64_FORMAT " "
-				     "ORDER BY id ASC;",
+				     "ORDER BY ts ASC;",
 				     key, dev, ts_start, ts_end);
 	rc = sqlite3_exec (self->db, statement, msx_database_item_cb, results, &error_msg);
 	if (rc != SQLITE_OK) {
