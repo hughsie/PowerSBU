@@ -186,6 +186,44 @@ msx_dump_string (const guint8 *data, gsize len)
 }
 
 static gboolean
+msx_util_query (MsxUtilPrivate *priv, gchar **values, GError **error)
+{
+	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
+	g_autofree gchar *location = NULL;
+	g_autoptr(GPtrArray) results = NULL;
+	g_autoptr(MsxDatabase) database = NULL;
+
+	/* use the system-wide database */
+	priv->msx_database = msx_database_new ();
+	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
+	msx_database_set_location (priv->msx_database, location);
+	if (!msx_database_open (priv->msx_database, error))
+		return FALSE;
+
+	/* check args */
+	if (g_strv_length (values) != 1) {
+		g_set_error_literal (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_INVALID_ARGUMENT,
+				     "Invalid arguments: expected device key");
+		return FALSE;
+	}
+
+	/* query database */
+	results = msx_database_query (priv->msx_database, values[0],
+				      MSX_DEVICE_ID_DEFAULT, 0, now, error);
+	if (results == NULL)
+		return FALSE;
+	for (guint i = 0; i < results->len; i++) {
+		MsxDatabaseItem *item = g_ptr_array_index (results, i);
+		g_print ("%" G_GINT64_FORMAT "\t%.2f\n",
+			 item->ts, (gdouble) item->val / 1000.f);
+	}
+
+	return TRUE;
+}
+
+static gboolean
 msx_util_probe (MsxUtilPrivate *priv, gchar **values, GError **error)
 {
 	GPtrArray *devices;
@@ -391,6 +429,12 @@ main (int argc, char *argv[])
 		      /* TRANSLATORS: command description */
 		      _("Probe one device"),
 		      msx_util_probe);
+	msx_util_add (priv->cmd_array,
+		      "query",
+		      NULL,
+		      /* TRANSLATORS: command description */
+		      _("Query one device property"),
+		      msx_util_query);
 	msx_util_add (priv->cmd_array,
 		      "daemon",
 		      NULL,
