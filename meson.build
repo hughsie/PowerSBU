@@ -79,6 +79,7 @@ add_global_link_arguments(
 
 gusb = dependency('gusb')
 gio = dependency('gio-unix-2.0')
+gtk = dependency('gtk+-3.0', version : '>= 3.3.8')
 sqlite3 = dependency('sqlite3')
 libm = cc.find_library('libm', required: false)
 
@@ -96,12 +97,9 @@ configure_file(
   output : 'config.h',
   configuration : conf
 )
-#top_build_incdir = include_directories(meson.current_build_dir())
 
 subdir('src')
-#subdir('man')
-#subdir('po')
-#subdir('data')
+subdir('po')
 
 archiver = find_program('git', required : false)
 if archiver.found()
