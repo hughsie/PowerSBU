@@ -186,17 +186,21 @@ msx_dump_string (const guint8 *data, gsize len)
 }
 
 static gboolean
+msx_util_repair (MsxUtil *self, gchar **values, GError **error)
+{
+	/* use the system-wide database */
+	if (!msx_database_open (self->msx_database, error))
+		return FALSE;
+	return msx_database_repair (self->msx_database, error);
+}
+
+static gboolean
 msx_util_query (MsxUtil *self, gchar **values, GError **error)
 {
 	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
-	g_autofree gchar *location = NULL;
 	g_autoptr(GPtrArray) results = NULL;
-	g_autoptr(MsxDatabase) database = NULL;
 
 	/* use the system-wide database */
-	self->msx_database = msx_database_new ();
-	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
-	msx_database_set_location (self->msx_database, location);
 	if (!msx_database_open (self->msx_database, error))
 		return FALSE;
 
@@ -350,13 +354,8 @@ static gboolean
 msx_util_daemon (MsxUtil *self, gchar **values, GError **error)
 {
 	g_autoptr(MsxContext) context = NULL;
-	g_autoptr(MsxDatabase) database = NULL;
-	g_autofree gchar *location = NULL;
 
 	/* use the system-wide database */
-	self->msx_database = msx_database_new ();
-	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
-	msx_database_set_location (self->msx_database, location);
 	if (!msx_database_open (self->msx_database, error))
 		return FALSE;
 
@@ -392,13 +391,12 @@ msx_util_sigint_cb (gpointer user_data)
 static void
 msx_util_self_free (MsxUtil *self)
 {
-	if (self->msx_database != NULL)
-		g_object_unref (self->msx_database);
 	g_main_loop_unref (self->loop);
 	g_object_unref (self->cancellable);
 	g_ptr_array_unref (self->cmd_array);
 	g_option_context_free (self->context);
 	g_object_unref (self->msx_context);
+	g_object_unref (self->msx_database);
 	g_free (self);
 }
 
@@ -413,6 +411,7 @@ msx_util_self_new (void)
 	self->cmd_array = g_ptr_array_new_with_free_func ((GDestroyNotify) msx_util_item_free);
 	self->context = g_option_context_new (NULL);
 	self->msx_context = msx_context_new ();
+	self->msx_database = msx_database_new ();
 	return self;
 }
 
@@ -424,6 +423,7 @@ main (int argc, char *argv[])
 	gboolean verbose = FALSE;
 	g_autoptr(GError) error = NULL;
 	g_autofree gchar *cmd_descriptions = NULL;
+	g_autofree gchar *location = NULL;
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 			/* TRANSLATORS: command line option */
@@ -457,6 +457,12 @@ main (int argc, char *argv[])
 		      _("Query one device property"),
 		      msx_util_query);
 	msx_util_add (self->cmd_array,
+		      "repair",
+		      NULL,
+		      /* TRANSLATORS: command description */
+		      _("Repair the database"),
+		      msx_util_repair);
+	msx_util_add (self->cmd_array,
 		      "daemon",
 		      NULL,
 		      /* TRANSLATORS: command description */
@@ -475,6 +481,10 @@ main (int argc, char *argv[])
 	/* get a list of the commands */
 	cmd_descriptions = msx_util_get_descriptions (self->cmd_array);
 	g_option_context_set_summary (self->context, cmd_descriptions);
+
+	/* use the system database */
+	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
+	msx_database_set_location (self->msx_database, location);
 
 	/* TRANSLATORS: program name */
 	g_set_application_name (_("MSX Utility"));

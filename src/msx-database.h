@@ -40,6 +40,8 @@ typedef struct {
 MsxDatabase	*msx_database_new			(void);
 gboolean	 msx_database_open			(MsxDatabase	*self,
 							 GError		**error);
+gboolean	 msx_database_repair			(MsxDatabase	*self,
+							 GError		**error);
 void		 msx_database_set_location		(MsxDatabase	*self,
 							 const gchar	*location);
 gboolean	 msx_database_save_value		(MsxDatabase	*self,

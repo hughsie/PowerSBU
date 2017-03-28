@@ -115,6 +115,19 @@ msx_database_add_item_to_cache (MsxDatabase *self, const gchar *key, gint val)
 }
 
 gboolean
+msx_database_repair (MsxDatabase *self, GError **error)
+{
+	const gchar *statement;
+
+	/* delete any negative values */
+	statement = "DELETE FROM log WHERE val < 0;";
+	if (!msx_database_execute (self, statement, error))
+		return FALSE;
+
+	return TRUE;
+}
+
+gboolean
 msx_database_open (MsxDatabase *self, GError **error)
 {
 	const gchar *statement;
