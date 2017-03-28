@@ -37,9 +37,9 @@ typedef struct {
 	GPtrArray		*cmd_array;
 	MsxContext		*msx_context;
 	MsxDatabase		*msx_database;
-} MsxUtilPrivate;
+} MsxUtil;
 
-typedef gboolean (*MsxUtilPrivateCb)	(MsxUtilPrivate	*util,
+typedef gboolean (*MsxUtilPrivateCb)	(MsxUtil	*util,
 					 gchar		**values,
 					 GError		**error);
 
@@ -137,13 +137,13 @@ msx_util_get_descriptions (GPtrArray *array)
 }
 
 static gboolean
-msx_util_run (MsxUtilPrivate *priv, const gchar *command, gchar **values, GError **error)
+msx_util_run (MsxUtil *self, const gchar *command, gchar **values, GError **error)
 {
 	/* find command */
-	for (guint i = 0; i < priv->cmd_array->len; i++) {
-		MsxUtilItem *item = g_ptr_array_index (priv->cmd_array, i);
+	for (guint i = 0; i < self->cmd_array->len; i++) {
+		MsxUtilItem *item = g_ptr_array_index (self->cmd_array, i);
 		if (g_strcmp0 (item->name, command) == 0)
-			return item->callback (priv, values, error);
+			return item->callback (self, values, error);
 	}
 
 	/* not found */
@@ -186,7 +186,7 @@ msx_dump_string (const guint8 *data, gsize len)
 }
 
 static gboolean
-msx_util_query (MsxUtilPrivate *priv, gchar **values, GError **error)
+msx_util_query (MsxUtil *self, gchar **values, GError **error)
 {
 	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
 	g_autofree gchar *location = NULL;
@@ -194,10 +194,10 @@ msx_util_query (MsxUtilPrivate *priv, gchar **values, GError **error)
 	g_autoptr(MsxDatabase) database = NULL;
 
 	/* use the system-wide database */
-	priv->msx_database = msx_database_new ();
+	self->msx_database = msx_database_new ();
 	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
-	msx_database_set_location (priv->msx_database, location);
-	if (!msx_database_open (priv->msx_database, error))
+	msx_database_set_location (self->msx_database, location);
+	if (!msx_database_open (self->msx_database, error))
 		return FALSE;
 
 	/* check args */
@@ -210,7 +210,7 @@ msx_util_query (MsxUtilPrivate *priv, gchar **values, GError **error)
 	}
 
 	/* query database */
-	results = msx_database_query (priv->msx_database, values[0],
+	results = msx_database_query (self->msx_database, values[0],
 				      MSX_DEVICE_ID_DEFAULT, 0, now, error);
 	if (results == NULL)
 		return FALSE;
@@ -224,7 +224,7 @@ msx_util_query (MsxUtilPrivate *priv, gchar **values, GError **error)
 }
 
 static gboolean
-msx_util_probe (MsxUtilPrivate *priv, gchar **values, GError **error)
+msx_util_probe (MsxUtil *self, gchar **values, GError **error)
 {
 	GPtrArray *devices;
 	MsxDevice *device;
@@ -240,9 +240,9 @@ msx_util_probe (MsxUtilPrivate *priv, gchar **values, GError **error)
 	}
 
 	/* get device */
-	if (!msx_context_coldplug (priv->msx_context, error))
+	if (!msx_context_coldplug (self->msx_context, error))
 		return FALSE;
-	devices = msx_context_get_devices (priv->msx_context);
+	devices = msx_context_get_devices (self->msx_context);
 	if (devices->len == 0) {
 		/* TRANSLATORS: nothing attached that can be upgraded */
 		g_print ("%s\n", _("No MSX hardware detected"));
@@ -267,14 +267,14 @@ msx_util_probe (MsxUtilPrivate *priv, gchar **values, GError **error)
 }
 
 static gboolean
-msx_util_devices (MsxUtilPrivate *priv, gchar **values, GError **error)
+msx_util_devices (MsxUtil *self, gchar **values, GError **error)
 {
 	GPtrArray *devices;
 
 	/* get all devices */
-	if (!msx_context_coldplug (priv->msx_context, error))
+	if (!msx_context_coldplug (self->msx_context, error))
 		return FALSE;
-	devices = msx_context_get_devices (priv->msx_context);
+	devices = msx_context_get_devices (self->msx_context);
 	if (devices->len == 0) {
 		/* TRANSLATORS: nothing attached that can be upgraded */
 		g_print ("%s\n", _("No MSX hardware detected"));
@@ -301,21 +301,21 @@ msx_util_devices (MsxUtilPrivate *priv, gchar **values, GError **error)
 static void
 msx_util_cancelled_cb (GCancellable *cancellable, gpointer user_data)
 {
-	MsxUtilPrivate *priv = (MsxUtilPrivate *) user_data;
+	MsxUtil *self = (MsxUtil *) user_data;
 	/* TRANSLATORS: this is when a device ctrl+c's a watch */
 	g_print ("%s\n", _("Cancelled"));
-	g_main_loop_quit (priv->loop);
+	g_main_loop_quit (self->loop);
 }
 
 static void
 msx_util_device_added_cb (MsxContext *context,
 			  MsxDevice *device,
-			  MsxUtilPrivate *priv)
+			  MsxUtil *self)
 {
 	g_autoptr(GError) error = NULL;
 
 	/* log these */
-	msx_device_set_database (device, priv->msx_database);
+	msx_device_set_database (device, self->msx_database);
 
 	/* open */
 	if (!msx_device_open (device, &error)) {
@@ -331,7 +331,7 @@ msx_util_device_added_cb (MsxContext *context,
 static void
 msx_util_device_removed_cb (MsxContext *context,
 			    MsxDevice *device,
-			    MsxUtilPrivate *priv)
+			    MsxUtil *self)
 {
 	g_autoptr(GError) error = NULL;
 
@@ -347,30 +347,30 @@ msx_util_device_removed_cb (MsxContext *context,
 }
 
 static gboolean
-msx_util_daemon (MsxUtilPrivate *priv, gchar **values, GError **error)
+msx_util_daemon (MsxUtil *self, gchar **values, GError **error)
 {
 	g_autoptr(MsxContext) context = NULL;
 	g_autoptr(MsxDatabase) database = NULL;
 	g_autofree gchar *location = NULL;
 
 	/* use the system-wide database */
-	priv->msx_database = msx_database_new ();
+	self->msx_database = msx_database_new ();
 	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
-	msx_database_set_location (priv->msx_database, location);
-	if (!msx_database_open (priv->msx_database, error))
+	msx_database_set_location (self->msx_database, location);
+	if (!msx_database_open (self->msx_database, error))
 		return FALSE;
 
 	/* get all the DFU devices */
 	context = msx_context_new ();
 	g_signal_connect (context, "added",
-			  G_CALLBACK (msx_util_device_added_cb), priv);
+			  G_CALLBACK (msx_util_device_added_cb), self);
 	g_signal_connect (context, "removed",
-			  G_CALLBACK (msx_util_device_removed_cb), priv);
-	g_signal_connect (priv->cancellable, "cancelled",
-			  G_CALLBACK (msx_util_cancelled_cb), priv);
+			  G_CALLBACK (msx_util_device_removed_cb), self);
+	g_signal_connect (self->cancellable, "cancelled",
+			  G_CALLBACK (msx_util_cancelled_cb), self);
 	if (!msx_context_coldplug (context, error))
 		return FALSE;
-	g_main_loop_run (priv->loop);
+	g_main_loop_run (self->loop);
 	return TRUE;
 }
 
@@ -383,19 +383,45 @@ msx_util_ignore_cb (const gchar *log_domain, GLogLevelFlags log_level,
 static gboolean
 msx_util_sigint_cb (gpointer user_data)
 {
-	MsxUtilPrivate *priv = (MsxUtilPrivate *) user_data;
+	MsxUtil *self = (MsxUtil *) user_data;
 	g_debug ("Handling SIGINT");
-	g_cancellable_cancel (priv->cancellable);
+	g_cancellable_cancel (self->cancellable);
 	return FALSE;
+}
+
+static void
+msx_util_self_free (MsxUtil *self)
+{
+	if (self->msx_database != NULL)
+		g_object_unref (self->msx_database);
+	g_main_loop_unref (self->loop);
+	g_object_unref (self->cancellable);
+	g_ptr_array_unref (self->cmd_array);
+	g_option_context_free (self->context);
+	g_object_unref (self->msx_context);
+	g_free (self);
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(MsxUtil, msx_util_self_free)
+
+static MsxUtil *
+msx_util_self_new (void)
+{
+	MsxUtil *self = g_new0 (MsxUtil, 1);
+	self->loop = g_main_loop_new (NULL, FALSE);
+	self->cancellable = g_cancellable_new ();
+	self->cmd_array = g_ptr_array_new_with_free_func ((GDestroyNotify) msx_util_item_free);
+	self->context = g_option_context_new (NULL);
+	self->msx_context = msx_context_new ();
+	return self;
 }
 
 int
 main (int argc, char *argv[])
 {
-	MsxUtilPrivate *priv;
+	g_autoptr(MsxUtil) self = msx_util_self_new ();
 	gboolean ret;
 	gboolean verbose = FALSE;
-	gint rc = 1;
 	g_autoptr(GError) error = NULL;
 	g_autofree gchar *cmd_descriptions = NULL;
 	const GOptionEntry options[] = {
@@ -411,31 +437,26 @@ main (int argc, char *argv[])
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 
-	/* create helper object */
-	priv = g_new0 (MsxUtilPrivate, 1);
-	priv->loop = g_main_loop_new (NULL, FALSE);
-
 	/* add commands */
-	priv->cmd_array = g_ptr_array_new_with_free_func ((GDestroyNotify) msx_util_item_free);
-	msx_util_add (priv->cmd_array,
+	msx_util_add (self->cmd_array,
 		      "devices",
 		      NULL,
 		      /* TRANSLATORS: command description */
 		      _("Get all devices"),
 		      msx_util_devices);
-	msx_util_add (priv->cmd_array,
+	msx_util_add (self->cmd_array,
 		      "probe",
 		      NULL,
 		      /* TRANSLATORS: command description */
 		      _("Probe one device"),
 		      msx_util_probe);
-	msx_util_add (priv->cmd_array,
+	msx_util_add (self->cmd_array,
 		      "query",
 		      NULL,
 		      /* TRANSLATORS: command description */
 		      _("Query one device property"),
 		      msx_util_query);
-	msx_util_add (priv->cmd_array,
+	msx_util_add (self->cmd_array,
 		      "daemon",
 		      NULL,
 		      /* TRANSLATORS: command description */
@@ -443,29 +464,27 @@ main (int argc, char *argv[])
 		      msx_util_daemon);
 
 	/* do stuff on ctrl+c */
-	priv->cancellable = g_cancellable_new ();
 	g_unix_signal_add_full (G_PRIORITY_DEFAULT,
 				SIGINT, msx_util_sigint_cb,
-				priv, NULL);
+				self, NULL);
 
 	/* sort by command name */
-	g_ptr_array_sort (priv->cmd_array,
+	g_ptr_array_sort (self->cmd_array,
 			  (GCompareFunc) fu_sort_command_name_cb);
 
 	/* get a list of the commands */
-	priv->context = g_option_context_new (NULL);
-	cmd_descriptions = msx_util_get_descriptions (priv->cmd_array);
-	g_option_context_set_summary (priv->context, cmd_descriptions);
+	cmd_descriptions = msx_util_get_descriptions (self->cmd_array);
+	g_option_context_set_summary (self->context, cmd_descriptions);
 
 	/* TRANSLATORS: program name */
 	g_set_application_name (_("MSX Utility"));
-	g_option_context_add_main_entries (priv->context, options, NULL);
-	ret = g_option_context_parse (priv->context, &argc, &argv, &error);
+	g_option_context_add_main_entries (self->context, options, NULL);
+	ret = g_option_context_parse (self->context, &argc, &argv, &error);
 	if (!ret) {
 		/* TRANSLATORS: the user didn't read the man page */
 		g_print ("%s: %s\n", _("Failed to parse arguments"),
 			 error->message);
-		goto out;
+		return EXIT_FAILURE;
 	}
 
 	/* set verbose? */
@@ -477,33 +496,18 @@ main (int argc, char *argv[])
 	}
 
 	/* run the specified command */
-	priv->msx_context = msx_context_new ();
-	ret = msx_util_run (priv, argv[1], (gchar**) &argv[2], &error);
+	ret = msx_util_run (self, argv[1], (gchar**) &argv[2], &error);
 	if (!ret) {
 		if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT)) {
 			g_autofree gchar *tmp = NULL;
-			tmp = g_option_context_get_help (priv->context, TRUE, NULL);
+			tmp = g_option_context_get_help (self->context, TRUE, NULL);
 			g_print ("%s\n\n%s", error->message, tmp);
 		} else {
 			g_print ("%s\n", error->message);
 		}
-		goto out;
+		return EXIT_FAILURE;
 	}
 
 	/* success */
-	rc = 0;
-out:
-	if (priv != NULL) {
-		if (priv->cmd_array != NULL)
-			g_ptr_array_unref (priv->cmd_array);
-		if (priv->msx_context != NULL)
-			g_object_unref (priv->msx_context);
-		if (priv->msx_database != NULL)
-			g_object_unref (priv->msx_database);
-		g_main_loop_unref (priv->loop);
-		g_object_unref (priv->cancellable);
-		g_option_context_free (priv->context);
-		g_free (priv);
-	}
-	return rc;
+	return EXIT_SUCCESS;
 }
