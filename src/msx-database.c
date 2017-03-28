@@ -176,10 +176,6 @@ msx_database_open (MsxDatabase *self, GError **error)
 		return FALSE;
 	}
 
-	/* we don't need to keep doing fsync */
-	if (!msx_database_execute (self, "PRAGMA synchronous=OFF", error))
-		return FALSE;
-
 	/* check transactions */
 	if (!msx_database_execute (self, "SELECT * FROM log LIMIT 1", &error_local)) {
 		g_debug ("creating table to repair: %s", error_local->message);
