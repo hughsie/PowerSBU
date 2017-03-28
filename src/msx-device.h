@@ -29,8 +29,6 @@
 
 G_BEGIN_DECLS
 
-#define MSX_DEVICE_ID_DEFAULT		0
-
 #define MSX_TYPE_DEVICE (msx_device_get_type ())
 
 G_DECLARE_FINAL_TYPE (MsxDevice, msx_device, MSX, DEVICE, GObject)

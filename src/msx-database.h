@@ -30,6 +30,8 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (MsxDatabase, msx_database, MSX, DATABASE, GObject)
 
+#define MSX_DEVICE_ID_DEFAULT		0
+
 typedef struct {
 	gint64		 ts;
 	gint		 val;
@@ -49,6 +51,9 @@ GPtrArray	*msx_database_query			(MsxDatabase	*self,
 							 guint		 dev,
 							 gint64		 ts_start,
 							 gint64		 ts_end,
+							 GError		**error);
+GHashTable	*msx_database_get_latest		(MsxDatabase	*self,
+							 guint		 dev,
 							 GError		**error);
 
 G_END_DECLS

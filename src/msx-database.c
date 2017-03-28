@@ -81,23 +81,14 @@ msx_database_execute (MsxDatabase *self,
 	return TRUE;
 }
 
-typedef struct {
-	gint64		 ts;
-	guint		 dev;
-	gchar		*key;
-	gint		 val;
-} MsxDatabaseResult;
-
 static gint
 msx_database_result_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
-	GPtrArray *results = (GPtrArray *) data;
-	MsxDatabaseResult *res = g_new0 (MsxDatabaseResult, 1);
-	res->ts = g_ascii_strtoll (argv[0], NULL, 10);
-	res->dev = g_ascii_strtoll (argv[1], NULL, 10);
-	res->key = g_strdup (argv[2]);
-	res->val = g_ascii_strtoll (argv[3], NULL, 10);
-	g_ptr_array_add (results, res);
+	GHashTable *results = (GHashTable *) data;
+	MsxDatabaseItem *item = g_new0 (MsxDatabaseItem, 1);
+	item->ts = g_ascii_strtoll (argv[0], NULL, 10);
+	item->val = g_ascii_strtoll (argv[2], NULL, 10);
+	g_hash_table_insert (results, g_strdup (argv[1]), item);
 	return 0;
 }
 
@@ -110,13 +101,6 @@ msx_database_item_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 	item->val = g_ascii_strtoll (argv[1], NULL, 10);
 	g_ptr_array_add (items, item);
 	return 0;
-}
-
-static void
-msx_database_result_free (MsxDatabaseResult *result)
-{
-	g_free (result->key);
-	g_free (result);
 }
 
 static MsxDatabaseItem *
@@ -134,10 +118,10 @@ gboolean
 msx_database_open (MsxDatabase *self, GError **error)
 {
 	const gchar *statement;
-	gchar *error_msg = NULL;
 	gint rc;
 	g_autoptr(GError) error_local = NULL;
-	g_autoptr(GPtrArray) results = NULL;
+	g_autoptr(GHashTable) results = NULL;
+	g_autoptr(GList) keys = NULL;
 
 	/* sanity check */
 	if (self->db != NULL) {
@@ -166,6 +150,7 @@ msx_database_open (MsxDatabase *self, GError **error)
 	}
 
 	/* open database */
+	g_debug ("loading %s", self->location);
 	rc = sqlite3_open (self->location, &self->db);
 	if (rc != SQLITE_OK) {
 		g_set_error (error,
@@ -197,8 +182,43 @@ msx_database_open (MsxDatabase *self, GError **error)
 	}
 
 	/* load existing values */
-	results = g_ptr_array_new_with_free_func ((GDestroyNotify) msx_database_result_free);
-	statement = "SELECT ts, dev, key, val FROM log GROUP BY key ORDER BY ts ASC;";
+	results = msx_database_get_latest (self, MSX_DEVICE_ID_DEFAULT, error);
+	if (results == NULL)
+		return FALSE;
+	keys = g_hash_table_get_keys (results);
+	for (GList *l = keys; l != NULL; l = l->next) {
+		const gchar *key = l->data;
+		MsxDatabaseItem *item = g_hash_table_lookup (results, key);
+		msx_database_add_item_to_cache (self, key, item->val);
+	}
+
+	/* success */
+	g_debug ("database open and ready for action!");
+	return TRUE;
+}
+
+GHashTable *
+msx_database_get_latest (MsxDatabase *self, guint dev, GError **error)
+{
+	gchar *error_msg = NULL;
+	gint rc;
+	g_autofree gchar *statement = NULL;
+	g_autoptr(GHashTable) results = NULL;
+
+	/* sanity check */
+	if (self->db == NULL) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "database is not open");
+		return NULL;
+	}
+
+	/* query */
+	results = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+	statement = g_strdup_printf ("SELECT ts, key, val FROM log "
+				     "WHERE dev = %u GROUP BY key "
+				     "ORDER BY ts ASC;", dev);
 	rc = sqlite3_exec (self->db, statement, msx_database_result_cb, results, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error,
@@ -206,16 +226,11 @@ msx_database_open (MsxDatabase *self, GError **error)
 			     G_IO_ERROR_FAILED,
 			     "SQL error: %s", error_msg);
 		sqlite3_free (error_msg);
-		return FALSE;
-	}
-	for (guint i = 0; i < results->len; i++) {
-		MsxDatabaseResult *res = g_ptr_array_index (results, i);
-		msx_database_add_item_to_cache (self, res->key, res->val);
+		return NULL;
 	}
 
 	/* success */
-	g_debug ("database open and ready for action!");
-	return TRUE;
+	return g_steal_pointer (&results);
 }
 
 static gdouble

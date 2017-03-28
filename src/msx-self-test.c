@@ -75,6 +75,7 @@ msx_test_database_func (void)
 	gint ts;
 	g_autofree gchar *location = NULL;
 	g_autoptr(GError) error = NULL;
+	g_autoptr(GHashTable) latest = NULL;
 	g_autoptr(GPtrArray) array1 = NULL;
 	g_autoptr(GPtrArray) array2 = NULL;
 	g_autoptr(MsxDatabase) db = NULL;
@@ -119,6 +120,14 @@ msx_test_database_func (void)
 	ret = msx_database_open (db, &error);
 	g_assert_no_error (error);
 	g_assert (ret);
+
+	/* get a dictionary of all the keys and last set values */
+	latest = msx_database_get_latest (db, MSX_DEVICE_ID_DEFAULT, &error);
+	g_assert_no_error (error);
+	g_assert (latest != NULL);
+	g_assert_cmpint (((MsxDatabaseItem *) g_hash_table_lookup (latest, "GridFrequency"))->val, ==, 52000);
+	g_assert_cmpint (((MsxDatabaseItem *) g_hash_table_lookup (latest, "AcOutputVoltage"))->val, ==, 230000);
+	g_assert (g_hash_table_lookup (latest, "SomeThingElse") == NULL);
 
 	/* cleanup */
 	g_unlink (location);
