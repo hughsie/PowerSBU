@@ -1,0 +1,43 @@
+%define alphatag			#ALPHATAG#
+
+Name:      libmsx
+Summary:   Visualize PIP-MS/MSX data
+Version:   #VERSION#
+Release:   0.#BUILD#%{?alphatag}%{?dist}
+License:   GPLv2+
+URL:       https://github.com/hughsie/libmsx
+Source0:   https://github.com/hughsie/libmsx/sources/%{name}-%{version}.tar.xz
+
+BuildRequires: gtk3-devel
+BuildRequires: gettext
+BuildRequires: libgudev1-devel
+BuildRequires: libappstream-glib
+BuildRequires: meson
+
+%description
+Visualize historical PIP-MS/MSX series inverter-charger data.
+
+%prep
+%setup -q
+
+%build
+%meson
+%meson_build
+
+%install
+%meson_install
+
+%find_lang %name --with-gnome
+
+%files -f %{name}.lang
+%license LICENSE
+%doc README.md
+%{_datadir}/applications/com.hughski.MsxGui.desktop
+%{_bindir}/msx-util
+%{_bindir}/msx-gui
+%{_datadir}/appdata/com.hughski.MsxGui.appdata.xml
+
+%changelog
+* #LONGDATE# Richard Hughes <richard@hughsie.com> #VERSION#-0.#BUILD##ALPHATAG#
+- Update from GIT
+
