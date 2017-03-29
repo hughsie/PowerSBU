@@ -1,10 +1,10 @@
 # English (British) translation.
-# Copyright (C) 2017 libmsx's COPYRIGHT HOLDER
-# This file is distributed under the same licence as the libmsx package.
+# Copyright (C) 2017 PowerSBU's COPYRIGHT HOLDER
+# This file is distributed under the same licence as the PowerSBU package.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: libmsx\n"
+"Project-Id-Version: PowerSBU\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2017-03-28 20:06+0100\n"
 "PO-Revision-Date: 2017-03-28 17:54+0100\n"
@@ -18,43 +18,43 @@ msgstr ""
 "X-Project-Style: gnome\n"
 
 #. TRANSLATORS: the program name
-#: src/data/com.hughski.MsxGui.appdata.xml.in:7
-#: src/data/com.hughski.MsxGui.desktop.in:3 src/msx-gui.c:73
+#: src/data/com.hughski.PowerSBU.appdata.xml.in:7
+#: src/data/com.hughski.PowerSBU.desktop.in:3 src/sbu-gui.c:73
 msgid "MSX GUI"
 msgstr ""
 
-#: src/data/com.hughski.MsxGui.appdata.xml.in:8
-#: src/data/com.hughski.MsxGui.desktop.in:4
+#: src/data/com.hughski.PowerSBU.appdata.xml.in:8
+#: src/data/com.hughski.PowerSBU.desktop.in:4
 msgid "Visualize PIP-MS/MSX data"
 msgstr ""
 
-#: src/data/com.hughski.MsxGui.appdata.xml.in:10
+#: src/data/com.hughski.PowerSBU.appdata.xml.in:10
 msgid "Visualize historical PIP-MS/MSX series inverter-charger data."
 msgstr ""
 
 #. Translators: Do NOT translate or transliterate this text (this is an icon file name)!
-#: src/data/com.hughski.MsxGui.desktop.in:6
+#: src/data/com.hughski.PowerSBU.desktop.in:6
 msgid "battery-good-charging"
 msgstr ""
 
 #. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
-#: src/data/com.hughski.MsxGui.desktop.in:12
+#: src/data/com.hughski.PowerSBU.desktop.in:12
 msgid "MSX;UPS;"
 msgstr ""
 
 #. TRANSLATORS: show verbose debugging
-#: src/msx-gui.c:64
+#: src/sbu-gui.c:64
 msgid "Show extra debugging information"
 msgstr ""
 
-#: src/msx-gui.ui:19
+#: src/sbu-gui.ui:19
 msgid "Overview"
 msgstr ""
 
-#: src/msx-gui.ui:61
+#: src/sbu-gui.ui:61
 msgid "History"
 msgstr ""
 
-#: src/msx-gui.ui:87
+#: src/sbu-gui.ui:87
 msgid "Details"
 msgstr ""

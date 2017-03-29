@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2017 Richard Hughes <richard@hughsie.com> -->
+<component type="desktop">
+  <id>com.hughski.PowerSBU.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0+</project_license>
+  <name>PowerSBU</name>
+  <summary>Visualize solar, battery and utility power data</summary>
+  <description>
+    <p>
+      Do you want to make your utility bill smaller, lower your carbon
+      footprint, or just write a book in an off-grid cabin in the woods?
+      You'll need some software to monitor how much power is being generated,
+      how much is stored, and how much is being used so you can plan accordingly.
+    </p>
+    <p>
+      When you've taken the decision to install solar panels you enter a maze of
+      technologies all managed by arcane, bizarre, and usually proprietary
+      software.
+    </p>
+    <p>
+      PowerSBU allows you to visualize the usage of solar, battery and utility
+      power over different time spans, allowing you to effectively manage
+      battery banks and solar panel arrays.
+    </p>
+    <p>
+      With a pluggable design, PowerSBU can support different types of hardware.
+      Currently supported devices include:
+    </p>
+    <ul>
+      <li>PowerSBU OpenHardware</li>
+      <li>PIP-MS/MSX</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">https://raw.githubusercontent.com/hughsie/libsbu/master/src/data/sbu-screenshot-history.png</screenshot>
+  </screenshots>
+  <releases>
+    <release date="2017-03-28" version="0.1.1">
+      <description>
+        <p>This is the first release.</p>
+      </description>
+    </release>
+  </releases>
+  <kudos>
+    <kudo>ModernToolkit</kudo>
+  </kudos>
+  <url type="homepage">https://github.com/hughsie/PowerSBU/</url>
+  <url type="bugtracker">https://github.com/hughsie/PowerSBU/issues</url>
+  <update_contact>richard_at_hughsie.com</update_contact>
+  <translation type="gettext">PowerSBU</translation>
+</component>

@@ -1,0 +1,7 @@
+[Unit]
+Description=SBU Daemon
+
+[Service]
+Type=dbus
+BusName=com.hughski.PowerSBU
+ExecStart=@LIBEXECDIR@/sbud

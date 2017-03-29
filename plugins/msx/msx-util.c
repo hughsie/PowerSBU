@@ -27,7 +27,6 @@
 #include <stdlib.h>
 
 #include "msx-context.h"
-#include "msx-database.h"
 #include "msx-device.h"
 
 typedef struct {
@@ -36,7 +35,6 @@ typedef struct {
 	GOptionContext		*context;
 	GPtrArray		*cmd_array;
 	MsxContext		*msx_context;
-	MsxDatabase		*msx_database;
 } MsxUtil;
 
 typedef gboolean (*MsxUtilPrivateCb)	(MsxUtil	*util,
@@ -186,48 +184,6 @@ msx_dump_string (const guint8 *data, gsize len)
 }
 
 static gboolean
-msx_util_repair (MsxUtil *self, gchar **values, GError **error)
-{
-	/* use the system-wide database */
-	if (!msx_database_open (self->msx_database, error))
-		return FALSE;
-	return msx_database_repair (self->msx_database, error);
-}
-
-static gboolean
-msx_util_query (MsxUtil *self, gchar **values, GError **error)
-{
-	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
-	g_autoptr(GPtrArray) results = NULL;
-
-	/* use the system-wide database */
-	if (!msx_database_open (self->msx_database, error))
-		return FALSE;
-
-	/* check args */
-	if (g_strv_length (values) != 1) {
-		g_set_error_literal (error,
-				     G_IO_ERROR,
-				     G_IO_ERROR_INVALID_ARGUMENT,
-				     "Invalid arguments: expected device key");
-		return FALSE;
-	}
-
-	/* query database */
-	results = msx_database_query (self->msx_database, values[0],
-				      MSX_DEVICE_ID_DEFAULT, 0, now, error);
-	if (results == NULL)
-		return FALSE;
-	for (guint i = 0; i < results->len; i++) {
-		MsxDatabaseItem *item = g_ptr_array_index (results, i);
-		g_print ("%" G_GINT64_FORMAT "\t%.2f\n",
-			 item->ts, (gdouble) item->val / 1000.f);
-	}
-
-	return TRUE;
-}
-
-static gboolean
 msx_util_probe (MsxUtil *self, gchar **values, GError **error)
 {
 	GPtrArray *devices;
@@ -303,77 +259,6 @@ msx_util_devices (MsxUtil *self, gchar **values, GError **error)
 }
 
 static void
-msx_util_cancelled_cb (GCancellable *cancellable, gpointer user_data)
-{
-	MsxUtil *self = (MsxUtil *) user_data;
-	/* TRANSLATORS: this is when a device ctrl+c's a watch */
-	g_print ("%s\n", _("Cancelled"));
-	g_main_loop_quit (self->loop);
-}
-
-static void
-msx_util_device_added_cb (MsxContext *context,
-			  MsxDevice *device,
-			  MsxUtil *self)
-{
-	g_autoptr(GError) error = NULL;
-
-	/* log these */
-	msx_device_set_database (device, self->msx_database);
-
-	/* open */
-	if (!msx_device_open (device, &error)) {
-		g_warning ("failed to open: %s", error->message);
-		return;
-	}
-
-	/* TRANSLATORS: this is when a device is hotplugged */
-	g_print ("%s: %s\n", _("Device added"),
-		 msx_device_get_serial_number (device));
-}
-
-static void
-msx_util_device_removed_cb (MsxContext *context,
-			    MsxDevice *device,
-			    MsxUtil *self)
-{
-	g_autoptr(GError) error = NULL;
-
-	/* TRANSLATORS: this is when a device is hotplugged */
-	g_print ("%s: %s\n", _("Device removed"),
-		 msx_device_get_serial_number (device));
-
-	/* open */
-	if (!msx_device_close (device, &error)) {
-		g_warning ("failed to close: %s", error->message);
-		return;
-	}
-}
-
-static gboolean
-msx_util_daemon (MsxUtil *self, gchar **values, GError **error)
-{
-	g_autoptr(MsxContext) context = NULL;
-
-	/* use the system-wide database */
-	if (!msx_database_open (self->msx_database, error))
-		return FALSE;
-
-	/* get all the DFU devices */
-	context = msx_context_new ();
-	g_signal_connect (context, "added",
-			  G_CALLBACK (msx_util_device_added_cb), self);
-	g_signal_connect (context, "removed",
-			  G_CALLBACK (msx_util_device_removed_cb), self);
-	g_signal_connect (self->cancellable, "cancelled",
-			  G_CALLBACK (msx_util_cancelled_cb), self);
-	if (!msx_context_coldplug (context, error))
-		return FALSE;
-	g_main_loop_run (self->loop);
-	return TRUE;
-}
-
-static void
 msx_util_ignore_cb (const gchar *log_domain, GLogLevelFlags log_level,
 		   const gchar *message, gpointer user_data)
 {
@@ -396,7 +281,6 @@ msx_util_self_free (MsxUtil *self)
 	g_ptr_array_unref (self->cmd_array);
 	g_option_context_free (self->context);
 	g_object_unref (self->msx_context);
-	g_object_unref (self->msx_database);
 	g_free (self);
 }
 
@@ -411,7 +295,6 @@ msx_util_self_new (void)
 	self->cmd_array = g_ptr_array_new_with_free_func ((GDestroyNotify) msx_util_item_free);
 	self->context = g_option_context_new (NULL);
 	self->msx_context = msx_context_new ();
-	self->msx_database = msx_database_new ();
 	return self;
 }
 
@@ -423,7 +306,6 @@ main (int argc, char *argv[])
 	gboolean verbose = FALSE;
 	g_autoptr(GError) error = NULL;
 	g_autofree gchar *cmd_descriptions = NULL;
-	g_autofree gchar *location = NULL;
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 			/* TRANSLATORS: command line option */
@@ -450,24 +332,6 @@ main (int argc, char *argv[])
 		      /* TRANSLATORS: command description */
 		      _("Probe one device"),
 		      msx_util_probe);
-	msx_util_add (self->cmd_array,
-		      "query",
-		      NULL,
-		      /* TRANSLATORS: command description */
-		      _("Query one device property"),
-		      msx_util_query);
-	msx_util_add (self->cmd_array,
-		      "repair",
-		      NULL,
-		      /* TRANSLATORS: command description */
-		      _("Repair the database"),
-		      msx_util_repair);
-	msx_util_add (self->cmd_array,
-		      "daemon",
-		      NULL,
-		      /* TRANSLATORS: command description */
-		      _("Monitor the daemon for events"),
-		      msx_util_daemon);
 
 	/* do stuff on ctrl+c */
 	g_unix_signal_add_full (G_PRIORITY_DEFAULT,
@@ -481,10 +345,6 @@ main (int argc, char *argv[])
 	/* get a list of the commands */
 	cmd_descriptions = msx_util_get_descriptions (self->cmd_array);
 	g_option_context_set_summary (self->context, cmd_descriptions);
-
-	/* use the system database */
-	location = g_build_filename ("/var", "lib", "msxd", "sqlite.db", NULL);
-	msx_database_set_location (self->msx_database, location);
 
 	/* TRANSLATORS: program name */
 	g_set_application_name (_("MSX Utility"));

@@ -19,45 +19,45 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __MSX_DATABASE_H
-#define __MSX_DATABASE_H
+#ifndef __SBU_DATABASE_H
+#define __SBU_DATABASE_H
 
 #include <glib-object.h>
 
 G_BEGIN_DECLS
 
-#define MSX_TYPE_DATABASE (msx_database_get_type ())
+#define SBU_TYPE_DATABASE (sbu_database_get_type ())
 
-G_DECLARE_FINAL_TYPE (MsxDatabase, msx_database, MSX, DATABASE, GObject)
+G_DECLARE_FINAL_TYPE (SbuDatabase, sbu_database, SBU, DATABASE, GObject)
 
-#define MSX_DEVICE_ID_DEFAULT		0
+#define SBU_DEVICE_ID_DEFAULT		0
 
 typedef struct {
 	gint64		 ts;
 	gint		 val;
-} MsxDatabaseItem;
+} SbuDatabaseItem;
 
-MsxDatabase	*msx_database_new			(void);
-gboolean	 msx_database_open			(MsxDatabase	*self,
+SbuDatabase	*sbu_database_new			(void);
+gboolean	 sbu_database_open			(SbuDatabase	*self,
 							 GError		**error);
-gboolean	 msx_database_repair			(MsxDatabase	*self,
+gboolean	 sbu_database_repair			(SbuDatabase	*self,
 							 GError		**error);
-void		 msx_database_set_location		(MsxDatabase	*self,
+void		 sbu_database_set_location		(SbuDatabase	*self,
 							 const gchar	*location);
-gboolean	 msx_database_save_value		(MsxDatabase	*self,
+gboolean	 sbu_database_save_value		(SbuDatabase	*self,
 							 const gchar	*key,
 							 gint		 val,
 							 GError		**error);
-GPtrArray	*msx_database_query			(MsxDatabase	*self,
+GPtrArray	*sbu_database_query			(SbuDatabase	*self,
 							 const gchar	*key,
 							 guint		 dev,
 							 gint64		 ts_start,
 							 gint64		 ts_end,
 							 GError		**error);
-GHashTable	*msx_database_get_latest		(MsxDatabase	*self,
+GHashTable	*sbu_database_get_latest		(SbuDatabase	*self,
 							 guint		 dev,
 							 GError		**error);
 
 G_END_DECLS
 
-#endif /* __MSX_DATABASE_H */
+#endif /* __SBU_DATABASE_H */

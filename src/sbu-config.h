@@ -20,34 +20,25 @@
  */
 
 
-#ifndef __MSX_DEVICE_H
-#define __MSX_DEVICE_H
+#ifndef __SBU_CONFIG_H
+#define __SBU_CONFIG_H
 
-#include <gusb.h>
-
-#include "msx-database.h"
+#include <glib-object.h>
 
 G_BEGIN_DECLS
 
-#define MSX_TYPE_DEVICE (msx_device_get_type ())
+#define SBU_TYPE_CONFIG (sbu_config_get_type ())
 
-G_DECLARE_FINAL_TYPE (MsxDevice, msx_device, MSX, DEVICE, GObject)
+G_DECLARE_FINAL_TYPE (SbuConfig, sbu_config, SBU, CONFIG, GObject)
 
-MsxDevice	*msx_device_new				(GUsbDevice	*usb_device);
-
-gboolean	 msx_device_close			(MsxDevice	*self,
-							 GError		**error);
-gboolean	 msx_device_open			(MsxDevice	*self,
-							 GError		**error);
-GBytes		*msx_device_send_command		(MsxDevice	*self,
-							 const gchar	*cmd,
-							 GError		**error);
-void		 msx_device_set_database		(MsxDevice	*self,
-							 MsxDatabase	*database);
-const gchar	*msx_device_get_serial_number		(MsxDevice	*self);
-const gchar	*msx_device_get_firmware_version1	(MsxDevice	*self);
-const gchar	*msx_device_get_firmware_version2	(MsxDevice	*self);
+SbuConfig	*sbu_config_new			(void);
+gchar		*sbu_config_get_string		(SbuConfig	*self,
+						 const gchar	*key,
+						 GError		**error);
+gint		 sbu_config_get_integer		(SbuConfig	*self,
+						 const gchar	*key,
+						 GError		**error);
 
 G_END_DECLS
 
-#endif /* __MSX_DEVICE_H */
+#endif /* __SBU_CONFIG_H */

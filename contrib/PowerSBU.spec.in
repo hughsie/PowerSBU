@@ -1,0 +1,60 @@
+%define alphatag			#ALPHATAG#
+
+Name:      PowerSBU
+Summary:   Visualize solar, battery and utility power data
+Version:   #VERSION#
+Release:   0.#BUILD#%{?alphatag}%{?dist}
+License:   GPLv2+
+URL:       https://github.com/hughsie/PowerSBU
+Source0:   https://github.com/hughsie/PowerSBU/sources/%{name}-%{version}.tar.xz
+
+BuildRequires: gettext
+BuildRequires: gtk3-devel
+BuildRequires: libappstream-glib
+BuildRequires: libgudev1-devel
+BuildRequires: systemd-devel
+BuildRequires: meson
+
+Requires: systemd
+
+%description
+When you've taken the decision to install solar panels you enter a maze of
+technologies all managed by arcane, bizarre, and usually proprietary
+software.
+
+PowerSBU allows you to visualize the usage of solar, battery and utility
+power over different time spans, allowing you to effectively manage
+battery banks and solar panel arrays.
+
+%prep
+%setup -q
+
+%build
+%meson
+%meson_build
+
+%install
+%meson_install
+
+%find_lang %name --with-gnome
+
+%files -f %{name}.lang
+%license LICENSE
+%doc README.md
+%config(noreplace) %{_sysconfdir}/sbud/sbud.conf
+%{_datadir}/applications/com.hughski.PowerSBU.desktop
+%{_bindir}/sbu-util
+%{_libexecdir}/sbud
+%{_bindir}/sbu-gui
+%{_datadir}/appdata/com.hughski.PowerSBU.appdata.xml
+%{_sysconfdir}/dbus-1/system.d/com.hughski.PowerSBU.conf
+%{_unitdir}/sbud.service
+%{_mandir}/man1/sbu-util.1.gz
+%{_mandir}/man1/sbu-gui.1.gz
+%{_libdir}/sbu-plugins-1/libsbu_plugin_dummy.so
+%{_libdir}/sbu-plugins-1/libsbu_plugin_msx.so
+
+%changelog
+* #LONGDATE# Richard Hughes <richard@hughsie.com> #VERSION#-0.#BUILD##ALPHATAG#
+- Update from GIT
+

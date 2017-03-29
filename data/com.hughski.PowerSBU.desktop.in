@@ -1,12 +1,12 @@
 [Desktop Entry]
-Name=MSX GUI
-Comment=Visualize PIP-MS/MSX data
+Name=PowerSBU
+Comment=Visualize solar, battery and utility power data
 # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
 Icon=battery-good-charging
-Exec=msx-gui
+Exec=sbu-gui
 Terminal=false
 Type=Application
 Categories=GNOME;GTK;System;
 # Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
-Keywords=MSX;UPS;
+Keywords=SBU;UPS;Solar;Battery;
 StartupNotify=true

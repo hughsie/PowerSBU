@@ -32,13 +32,18 @@ struct _MsxDevice
 {
 	GObject			 parent_instance;
 	GUsbDevice		*usb_device;
-	MsxDatabase		*database;
 	gchar			*serial_number;
 	gchar			*firmware_version1;
 	gchar			*firmware_version2;
-	guint			 poll_id;
-	guint			 poll_timeout;
+	GHashTable		*hash;	/* key : int */
 };
+
+enum {
+	SIGNAL_CHANGED,
+	SIGNAL_LAST
+};
+
+static guint signals [SIGNAL_LAST] = { 0 };
 
 G_DEFINE_TYPE (MsxDevice, msx_device, G_TYPE_OBJECT)
 
@@ -271,6 +276,33 @@ typedef struct {
 	const gchar	*key;
 } MsxDeviceBufferOffsets;
 
+static void
+msx_device_emit_changed (MsxDevice *self, const gchar *key, gint val)
+{
+	gint *val_ptr = g_hash_table_lookup (self->hash, key);
+	if (val_ptr == NULL) {
+		val_ptr = g_new0 (gint, 1);
+		g_hash_table_insert (self->hash, g_strdup (key), val_ptr);
+		g_debug ("cache add new %s=%i", key, val);
+	} else if (*val_ptr == val) {
+		g_debug ("cache ignore duplicate %s=%i", key, val);
+		return;
+	}
+
+	/* emit and THEN save new value so we can get the old value */
+	g_signal_emit (self, signals[SIGNAL_CHANGED], 0, key, val);
+	*val_ptr = val;
+}
+
+gint
+msx_device_get_value (MsxDevice *self, const gchar *key)
+{
+	gint *val_ptr = g_hash_table_lookup (self->hash, key);
+	if (val_ptr == NULL)
+		return 0;
+	return *val_ptr;
+}
+
 static gboolean
 msx_device_buffer_parse (MsxDevice *self, GBytes *response,
 			 MsxDeviceBufferOffsets *offsets,
@@ -301,14 +333,7 @@ msx_device_buffer_parse (MsxDevice *self, GBytes *response,
 					offsets[i].key, (guint) offsets[i].off);
 			return FALSE;
 		}
-		/* add to the database */
-		if (self->database != NULL) {
-			if (!msx_database_save_value (self->database,
-						      offsets[i].key,
-						      val,
-						      error))
-				return FALSE;
-		}
+		msx_device_emit_changed (self, offsets[i].key, val);
 	}
 	return TRUE;
 }
@@ -322,19 +347,9 @@ msx_device_buffer_parse_bits (MsxDevice *self, GBytes *response,
 	const gchar *data = g_bytes_get_data (response, NULL);
 	for (guint i = 0; offsets[i].key != NULL; i++) {
 		if (data[offsets[i].off] == '0') {
-			if (self->database != NULL) {
-				if (!msx_database_save_value (self->database,
-							      offsets[i].key, 0,
-							      error))
-					return FALSE;
-			}
+			msx_device_emit_changed (self, offsets[i].key, 0);
 		} else if (data[offsets[i].off] == '1') {
-			if (self->database != NULL) {
-				if (!msx_database_save_value (self->database,
-							      offsets[i].key, 1,
-							      error))
-					return FALSE;
-			}
+			msx_device_emit_changed (self, offsets[i].key, 1);
 		} else {
 			g_set_error (error,
 				     G_IO_ERROR,
@@ -492,45 +507,14 @@ msx_device_rescan_firmware_versions (MsxDevice *self, GError **error)
 	return TRUE;
 }
 
-static gboolean
-msx_device_rescan_runtime (MsxDevice *self, GError **error)
+gboolean
+msx_device_refresh (MsxDevice *self, GError **error)
 {
 	if (!msx_device_rescan_device_rating (self, error))
 		return FALSE;
 	if (!msx_device_rescan_device_general_status (self, error))
 		return FALSE;
 	return TRUE;
-}
-
-static gboolean
-msx_device_poll_cb (gpointer user_data)
-{
-	MsxDevice *self = MSX_DEVICE (user_data);
-	g_autoptr(GError) error = NULL;
-
-	/* rescan stuff that can change at runtime */
-	g_debug ("poll %s", self->serial_number);
-	if (!msx_device_rescan_runtime (self, &error))
-		g_warning ("failed to rescan: %s", error->message);
-
-	return TRUE;
-}
-
-static void
-msx_device_poll_start (MsxDevice *self)
-{
-	if (self->poll_id != 0)
-		g_source_remove (self->poll_id);
-	self->poll_id = g_timeout_add_seconds (self->poll_timeout, msx_device_poll_cb, self);
-}
-
-static void
-msx_device_poll_stop (MsxDevice *self)
-{
-	if (self->poll_id == 0)
-		return;
-	g_source_remove (self->poll_id);
-	self->poll_id = 0;
 }
 
 gboolean
@@ -559,11 +543,9 @@ msx_device_open (MsxDevice *self, GError **error)
 		return FALSE;
 
 	/* initial try */
-	if (!msx_device_rescan_runtime (self, error))
+	if (!msx_device_refresh (self, error))
 		return FALSE;
 
-	/* set up initial poll */
-	msx_device_poll_start (self);
 	return TRUE;
 }
 
@@ -604,25 +586,16 @@ msx_device_get_firmware_version2 (MsxDevice *self)
 	return self->firmware_version2;
 }
 
-void
-msx_device_set_database	(MsxDevice *self, MsxDatabase *database)
-{
-	g_set_object (&self->database, database);
-}
-
 static void
 msx_device_finalize (GObject *object)
 {
 	MsxDevice *self = MSX_DEVICE (object);
 
-	msx_device_poll_stop (self);
-
 	g_free (self->serial_number);
 	g_free (self->firmware_version1);
 	g_free (self->firmware_version2);
-	if (self->database != NULL)
-		g_object_unref (self->database);
 	g_object_unref (self->usb_device);
+	g_hash_table_unref (self->hash);
 
 	G_OBJECT_CLASS (msx_device_parent_class)->finalize (object);
 }
@@ -630,7 +603,7 @@ msx_device_finalize (GObject *object)
 static void
 msx_device_init (MsxDevice *self)
 {
-	self->poll_timeout = 5;
+	self->hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 }
 
 static void
@@ -638,6 +611,12 @@ msx_device_class_init (MsxDeviceClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	object_class->finalize = msx_device_finalize;
+
+	signals [SIGNAL_CHANGED] =
+		g_signal_new ("changed",
+			      G_TYPE_FROM_CLASS (object_class), G_SIGNAL_RUN_LAST,
+			      0, NULL, NULL, g_cclosure_marshal_generic,
+			      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_INT);
 }
 
 /**

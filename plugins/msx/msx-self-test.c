@@ -27,7 +27,6 @@
 
 #include "msx-common.h"
 #include "msx-device.h"
-#include "msx-database.h"
 
 static void
 msx_test_common_func (void)
@@ -68,71 +67,6 @@ msx_test_common_func (void)
 	g_assert_cmpint (msx_common_parse_int (raw, 0x1b, -1, NULL), ==, 3000000);
 }
 
-static void
-msx_test_database_func (void)
-{
-	gboolean ret;
-	gint ts;
-	g_autofree gchar *location = NULL;
-	g_autoptr(GError) error = NULL;
-	g_autoptr(GHashTable) latest = NULL;
-	g_autoptr(GPtrArray) array1 = NULL;
-	g_autoptr(GPtrArray) array2 = NULL;
-	g_autoptr(MsxDatabase) db = NULL;
-
-	location = g_build_filename ("/tmp", "msx-self-test", "raw.db", NULL);
-	g_unlink (location);
-
-	db = msx_database_new ();
-	msx_database_set_location (db, location);
-	ret = msx_database_open (db, &error);
-	g_assert_no_error (error);
-	g_assert (ret);
-
-	msx_database_save_value (db, "GridFrequency", 50000, NULL);
-	msx_database_save_value (db, "GridFrequency", 50000, NULL);
-	msx_database_save_value (db, "GridFrequency", 50001, NULL);
-	msx_database_save_value (db, "GridFrequency", 51000, NULL);
-	msx_database_save_value (db, "GridFrequency", 52000, NULL);
-	msx_database_save_value (db, "AcOutputVoltage", 230000, NULL);
-
-	/* query what we just put in */
-	ts = g_get_real_time () / G_USEC_PER_SEC;
-	array1 = msx_database_query (db, "GridFrequency", MSX_DEVICE_ID_DEFAULT, 0, ts, &error);
-	g_assert_no_error (error);
-	g_assert (array1 != NULL);
-	g_assert_cmpint (array1->len, ==, 3);
-	g_assert_cmpint (((MsxDatabaseItem *) g_ptr_array_index (array1, 0))->val, ==, 50000);
-	g_assert_cmpint (((MsxDatabaseItem *) g_ptr_array_index (array1, 1))->val, ==, 51000);
-	g_assert_cmpint (((MsxDatabaseItem *) g_ptr_array_index (array1, 2))->val, ==, 52000);
-
-	/* query unknown key */
-	array2 = msx_database_query (db, "SomeThingElse", MSX_DEVICE_ID_DEFAULT, 0, ts, &error);
-	g_assert_no_error (error);
-	g_assert (array2 != NULL);
-	g_assert_cmpint (array2->len, ==, 0);
-
-	/* close, and reload */
-	g_debug ("loading again...");
-	g_object_unref (db);
-	db = msx_database_new ();
-	msx_database_set_location (db, location);
-	ret = msx_database_open (db, &error);
-	g_assert_no_error (error);
-	g_assert (ret);
-
-	/* get a dictionary of all the keys and last set values */
-	latest = msx_database_get_latest (db, MSX_DEVICE_ID_DEFAULT, &error);
-	g_assert_no_error (error);
-	g_assert (latest != NULL);
-	g_assert_cmpint (((MsxDatabaseItem *) g_hash_table_lookup (latest, "GridFrequency"))->val, ==, 52000);
-	g_assert_cmpint (((MsxDatabaseItem *) g_hash_table_lookup (latest, "AcOutputVoltage"))->val, ==, 230000);
-	g_assert (g_hash_table_lookup (latest, "SomeThingElse") == NULL);
-
-	/* cleanup */
-	g_unlink (location);
-}
-
 int
 main (int argc, char **argv)
 {
@@ -142,7 +76,6 @@ main (int argc, char **argv)
 
 	/* tests go here */
 	g_test_add_func ("/common", msx_test_common_func);
-	g_test_add_func ("/database", msx_test_database_func);
 
 	return g_test_run ();
 }

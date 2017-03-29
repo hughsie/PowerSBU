@@ -1,4 +1,4 @@
-project('libmsx', 'c',
+project('PowerSBU', 'c',
   version : '0.1.1',
   default_options : ['warning_level=1'],
   meson_version : '>=0.37.0'
@@ -79,14 +79,25 @@ add_global_link_arguments(
 
 gusb = dependency('gusb')
 gio = dependency('gio-unix-2.0')
+gmodule = dependency('gmodule-2.0')
 gtk = dependency('gtk+-3.0', version : '>= 3.3.8')
 sqlite3 = dependency('sqlite3')
+appstream_glib = dependency('appstream-glib')
+valgrind = dependency('valgrind')
 libm = cc.find_library('libm', required: false)
 
 gnome = import('gnome')
 i18n = import('i18n')
 
+plugin_dir = join_paths(get_option('prefix'),
+                        get_option('libdir'),
+                        'sbu-plugins-1')
+conf.set_quoted('PLUGINDIR', plugin_dir)
+
 conf.set_quoted('GETTEXT_PACKAGE', meson.project_name())
+conf.set_quoted('SYSCONFDIR',
+                join_paths(get_option('prefix'),
+                           get_option('sysconfdir')))
 conf.set_quoted('LOCALEDIR',
                 join_paths(get_option('prefix'),
                            get_option('localedir')))
@@ -98,6 +109,8 @@ configure_file(
   configuration : conf
 )
 
+subdir('plugins')
+subdir('data')
 subdir('src')
 subdir('po')
 

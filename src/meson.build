@@ -1,22 +1,30 @@
-subdir('data')
+cargs = ['-DG_LOG_DOMAIN="PowerSBU"']
 
-cargs = ['-DG_LOG_DOMAIN="Msx"']
-
-msx_gui_resources = gnome.compile_resources(
-  'msx-gui-resources',
-  'msx-gui.gresource.xml',
+sbu_gui_resources = gnome.compile_resources(
+  'sbu-gui-resources',
+  'sbu-gui.gresource.xml',
   source_dir : '.',
-  c_name : 'msx'
+  c_name : 'sbu'
 )
 
+sbu_dbus_src = gnome.gdbus_codegen(
+  'generated-gdbus',
+  'com.hughski.PowerSBU.xml',
+  interface_prefix : 'com.hughski.PowerSBU.',
+  namespace : 'Sbu')
+
 executable(
-  'msx-gui',
-  msx_gui_resources,
+  'sbu-gui',
+  sbu_gui_resources,
   sources : [
     'egg-graph-point.c',
     'egg-graph-widget.c',
-    'msx-database.c',
-    'msx-gui.c',
+    'sbu-common.c',
+    'sbu-config.c',
+    'sbu-database.c',
+    'sbu-gui.c',
+    'sbu-xml-modifier.c',
+    sbu_dbus_src
   ],
   include_directories : [
     include_directories('..'),
@@ -24,6 +32,7 @@ executable(
   dependencies : [
     gtk,
     sqlite3,
+    appstream_glib,
     libm,
   ],
   c_args : cargs,
@@ -32,13 +41,13 @@ executable(
 )
 
 executable(
-  'msx-util',
+  'sbu-util',
   sources : [
-    'msx-common.c',
-    'msx-context.c',
-    'msx-database.c',
-    'msx-device.c',
-    'msx-util.c',
+    'sbu-common.c',
+    'sbu-config.c',
+    'sbu-database.c',
+    'sbu-util.c',
+    sbu_dbus_src
   ],
   include_directories : [
     include_directories('..'),
@@ -54,13 +63,41 @@ executable(
   install_dir : 'bin'
 )
 
+executable(
+  'sbud',
+  sources : [
+    'sbu-common.c',
+    'sbu-config.c',
+    'sbu-database.c',
+    'sbu-device-impl.c',
+    'sbu-element-impl.c',
+    'sbu-manager-impl.c',
+    'sbu-plugin.c',
+    'sbu-main.c',
+    sbu_dbus_src
+  ],
+  include_directories : [
+    include_directories('..'),
+  ],
+  dependencies : [
+    gio,
+    gusb,
+    sqlite3,
+    gmodule,
+    libm,
+  ],
+  c_args : cargs,
+  install : true,
+  install_dir : get_option('libexecdir')
+)
+
 if get_option('enable-tests')
   e = executable(
-    'msx-self-test',
+    'sbu-self-test',
     sources : [
-      'msx-common.c',
-      'msx-database.c',
-      'msx-self-test.c'
+      'sbu-database.c',
+      'sbu-self-test.c',
+      'sbu-xml-modifier.c',
     ],
     include_directories : [
       include_directories('..'),
@@ -73,5 +110,5 @@ if get_option('enable-tests')
     ],
     c_args : cargs
   )
-  test('msx-self-test', e)
+  test('sbu-self-test', e)
 endif

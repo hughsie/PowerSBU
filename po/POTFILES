@@ -1,4 +1,4 @@
-src/data/com.hughski.MsxGui.appdata.xml.in
-src/data/com.hughski.MsxGui.desktop.in
-src/msx-gui.c
-src/msx-gui.ui
+src/data/com.hughski.PowerSBU.appdata.xml.in
+src/data/com.hughski.PowerSBU.desktop.in
+src/sbu-gui.c
+src/sbu-gui.ui

@@ -26,9 +26,9 @@
 #include <sqlite3.h>
 #include <math.h>
 
-#include "msx-database.h"
+#include "sbu-database.h"
 
-struct _MsxDatabase
+struct _SbuDatabase
 {
 	GObject			 parent_instance;
 
@@ -37,19 +37,19 @@ struct _MsxDatabase
 	sqlite3			*db;
 };
 
-#define MSX_DATABASE_VALUE_DELTA	0.5f
+#define SBU_DATABASE_VALUE_DELTA	0.5f
 
-G_DEFINE_TYPE (MsxDatabase, msx_database, G_TYPE_OBJECT)
+G_DEFINE_TYPE (SbuDatabase, sbu_database, G_TYPE_OBJECT)
 
 void
-msx_database_set_location (MsxDatabase *self, const gchar *location)
+sbu_database_set_location (SbuDatabase *self, const gchar *location)
 {
 	g_free (self->location);
 	self->location = g_strdup (location);
 }
 
 static gboolean
-msx_database_ensure_file_directory (const gchar *path, GError **error)
+sbu_database_ensure_file_directory (const gchar *path, GError **error)
 {
 	g_autofree gchar *parent = NULL;
 	parent = g_path_get_dirname (path);
@@ -64,7 +64,7 @@ msx_database_ensure_file_directory (const gchar *path, GError **error)
 }
 
 static gboolean
-msx_database_execute (MsxDatabase *self,
+sbu_database_execute (SbuDatabase *self,
 			   const gchar *statement,
 			   GError **error)
 {
@@ -82,10 +82,10 @@ msx_database_execute (MsxDatabase *self,
 }
 
 static gint
-msx_database_result_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+sbu_database_result_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
 	GHashTable *results = (GHashTable *) data;
-	MsxDatabaseItem *item = g_new0 (MsxDatabaseItem, 1);
+	SbuDatabaseItem *item = g_new0 (SbuDatabaseItem, 1);
 	item->ts = g_ascii_strtoll (argv[0], NULL, 10);
 	item->val = g_ascii_strtoll (argv[2], NULL, 10);
 	g_hash_table_insert (results, g_strdup (argv[1]), item);
@@ -93,20 +93,20 @@ msx_database_result_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 }
 
 static gint
-msx_database_item_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+sbu_database_item_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
 	GPtrArray *items = (GPtrArray *) data;
-	MsxDatabaseItem *item = g_new0 (MsxDatabaseItem, 1);
+	SbuDatabaseItem *item = g_new0 (SbuDatabaseItem, 1);
 	item->ts = g_ascii_strtoll (argv[0], NULL, 10);
 	item->val = g_ascii_strtoll (argv[1], NULL, 10);
 	g_ptr_array_add (items, item);
 	return 0;
 }
 
-static MsxDatabaseItem *
-msx_database_add_item_to_cache (MsxDatabase *self, const gchar *key, gint val)
+static SbuDatabaseItem *
+sbu_database_add_item_to_cache (SbuDatabase *self, const gchar *key, gint val)
 {
-	MsxDatabaseItem *item = g_new0 (MsxDatabaseItem, 1);
+	SbuDatabaseItem *item = g_new0 (SbuDatabaseItem, 1);
 	item->ts = g_get_real_time () / G_USEC_PER_SEC;
 	item->val = val;
 	g_debug ("adding %s=%i to the cache", key, val);
@@ -115,20 +115,20 @@ msx_database_add_item_to_cache (MsxDatabase *self, const gchar *key, gint val)
 }
 
 gboolean
-msx_database_repair (MsxDatabase *self, GError **error)
+sbu_database_repair (SbuDatabase *self, GError **error)
 {
 	const gchar *statement;
 
 	/* delete any negative values */
 	statement = "DELETE FROM log WHERE val < 0;";
-	if (!msx_database_execute (self, statement, error))
+	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
 
 	return TRUE;
 }
 
 gboolean
-msx_database_open (MsxDatabase *self, GError **error)
+sbu_database_open (SbuDatabase *self, GError **error)
 {
 	const gchar *statement;
 	gint rc;
@@ -155,7 +155,7 @@ msx_database_open (MsxDatabase *self, GError **error)
 	}
 
 	/* ensure parent dirs exist */
-	if (!msx_database_ensure_file_directory (self->location, error)) {
+	if (!sbu_database_ensure_file_directory (self->location, error)) {
 		g_prefix_error (error,
 				"failed to create directory for %s: ",
 				self->location);
@@ -177,7 +177,7 @@ msx_database_open (MsxDatabase *self, GError **error)
 	}
 
 	/* check transactions */
-	if (!msx_database_execute (self, "SELECT * FROM log LIMIT 1", &error_local)) {
+	if (!sbu_database_execute (self, "SELECT * FROM log LIMIT 1", &error_local)) {
 		g_debug ("creating table to repair: %s", error_local->message);
 		g_clear_error (&error_local);
 		statement = "CREATE TABLE log ("
@@ -186,19 +186,19 @@ msx_database_open (MsxDatabase *self, GError **error)
 			    "ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
 			    "key STRING DEFAULT NULL,"
 			    "val INTEGER);";
-		if (!msx_database_execute (self, statement, error))
+		if (!sbu_database_execute (self, statement, error))
 			return FALSE;
 	}
 
 	/* load existing values */
-	results = msx_database_get_latest (self, MSX_DEVICE_ID_DEFAULT, error);
+	results = sbu_database_get_latest (self, SBU_DEVICE_ID_DEFAULT, error);
 	if (results == NULL)
 		return FALSE;
 	keys = g_hash_table_get_keys (results);
 	for (GList *l = keys; l != NULL; l = l->next) {
 		const gchar *key = l->data;
-		MsxDatabaseItem *item = g_hash_table_lookup (results, key);
-		msx_database_add_item_to_cache (self, key, item->val);
+		SbuDatabaseItem *item = g_hash_table_lookup (results, key);
+		sbu_database_add_item_to_cache (self, key, item->val);
 	}
 
 	/* success */
@@ -207,7 +207,7 @@ msx_database_open (MsxDatabase *self, GError **error)
 }
 
 GHashTable *
-msx_database_get_latest (MsxDatabase *self, guint dev, GError **error)
+sbu_database_get_latest (SbuDatabase *self, guint dev, GError **error)
 {
 	gchar *error_msg = NULL;
 	gint rc;
@@ -228,7 +228,7 @@ msx_database_get_latest (MsxDatabase *self, guint dev, GError **error)
 	statement = g_strdup_printf ("SELECT ts, key, val FROM log "
 				     "WHERE dev = %u GROUP BY key "
 				     "ORDER BY ts ASC;", dev);
-	rc = sqlite3_exec (self->db, statement, msx_database_result_cb, results, &error_msg);
+	rc = sqlite3_exec (self->db, statement, sbu_database_result_cb, results, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error,
 			     G_IO_ERROR,
@@ -243,16 +243,16 @@ msx_database_get_latest (MsxDatabase *self, guint dev, GError **error)
 }
 
 static gdouble
-msx_database_compare_values (gint val_new, gint val_old)
+sbu_database_compare_values (gint val_new, gint val_old)
 {
 	gdouble pc = 100.f - (((gdouble) val_new * 100.f) / (gdouble) val_old);
 	return fabs (pc);
 }
 
 gboolean
-msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError **error)
+sbu_database_save_value (SbuDatabase *self, const gchar *key, gint val, GError **error)
 {
-	MsxDatabaseItem *item;
+	SbuDatabaseItem *item;
 	g_autofree gchar *statement = NULL;
 
 	/* sanity check */
@@ -272,8 +272,8 @@ msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError *
 			g_debug ("same value for %s=%i, ignoring", key, val);
 			return TRUE;
 		}
-		tmp = msx_database_compare_values (val, item->val);
-		if (tmp < MSX_DATABASE_VALUE_DELTA) {
+		tmp = sbu_database_compare_values (val, item->val);
+		if (tmp < SBU_DATABASE_VALUE_DELTA) {
 			g_debug ("within %.2f%% of value for %s=%i->%i, ignoring",
 				 tmp, key, item->val, val);
 			return TRUE;
@@ -284,11 +284,11 @@ msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError *
 	}
 
 	/* save to cache and database */
-	item = msx_database_add_item_to_cache (self, key, val);
+	item = sbu_database_add_item_to_cache (self, key, val);
 	statement = g_strdup_printf ("INSERT INTO log (ts, key, val) "
 				     "VALUES ('%" G_GINT64_FORMAT "', '%s', '%i')",
 				     item->ts, key, item->val);
-	if (!msx_database_execute (self, statement, error))
+	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
 
 	/* success */
@@ -296,7 +296,7 @@ msx_database_save_value (MsxDatabase *self, const gchar *key, gint val, GError *
 }
 
 GPtrArray *
-msx_database_query (MsxDatabase *self, const gchar *key, guint dev,
+sbu_database_query (SbuDatabase *self, const gchar *key, guint dev,
 		    gint64 ts_start, gint64 ts_end, GError **error)
 {
 	g_autoptr(GPtrArray) results = g_ptr_array_new_with_free_func (g_free);
@@ -311,7 +311,7 @@ msx_database_query (MsxDatabase *self, const gchar *key, guint dev,
 				     "AND ts <= %" G_GINT64_FORMAT " "
 				     "ORDER BY ts ASC;",
 				     key, dev, ts_start, ts_end);
-	rc = sqlite3_exec (self->db, statement, msx_database_item_cb, results, &error_msg);
+	rc = sqlite3_exec (self->db, statement, sbu_database_item_cb, results, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error,
 			     G_IO_ERROR,
@@ -326,40 +326,40 @@ msx_database_query (MsxDatabase *self, const gchar *key, guint dev,
 }
 
 static void
-msx_database_finalize (GObject *object)
+sbu_database_finalize (GObject *object)
 {
-	MsxDatabase *self = MSX_DATABASE (object);
+	SbuDatabase *self = SBU_DATABASE (object);
 
 	if (self->db != NULL)
 		sqlite3_close (self->db);
 	g_free (self->location);
 	g_hash_table_unref (self->hash);
 
-	G_OBJECT_CLASS (msx_database_parent_class)->finalize (object);
+	G_OBJECT_CLASS (sbu_database_parent_class)->finalize (object);
 }
 
 static void
-msx_database_init (MsxDatabase *self)
+sbu_database_init (SbuDatabase *self)
 {
 	self->hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 }
 
 static void
-msx_database_class_init (MsxDatabaseClass *klass)
+sbu_database_class_init (SbuDatabaseClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
-	object_class->finalize = msx_database_finalize;
+	object_class->finalize = sbu_database_finalize;
 }
 
 /**
- * msx_database_new:
+ * sbu_database_new:
  *
- * Return value: a new MsxDatabase object.
+ * Return value: a new SbuDatabase object.
  **/
-MsxDatabase *
-msx_database_new (void)
+SbuDatabase *
+sbu_database_new (void)
 {
-	MsxDatabase *self;
-	self = g_object_new (MSX_TYPE_DATABASE, NULL);
-	return MSX_DATABASE (self);
+	SbuDatabase *self;
+	self = g_object_new (SBU_TYPE_DATABASE, NULL);
+	return SBU_DATABASE (self);
 }

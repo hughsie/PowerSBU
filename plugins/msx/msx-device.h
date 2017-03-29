@@ -20,27 +20,34 @@
  */
 
 
-#ifndef __MSX_CONTEXT_H
-#define __MSX_CONTEXT_H
+#ifndef __MSX_DEVICE_H
+#define __MSX_DEVICE_H
 
 #include <gusb.h>
 
-#include "msx-database.h"
-
 G_BEGIN_DECLS
 
-#define MSX_CONTEXT_ID_DEFAULT		0
+#define MSX_TYPE_DEVICE (msx_device_get_type ())
 
-#define MSX_TYPE_CONTEXT (msx_context_get_type ())
+G_DECLARE_FINAL_TYPE (MsxDevice, msx_device, MSX, DEVICE, GObject)
 
-G_DECLARE_FINAL_TYPE (MsxContext, msx_context, MSX, CONTEXT, GObject)
+MsxDevice	*msx_device_new				(GUsbDevice	*usb_device);
 
-MsxContext	*msx_context_new		(void);
-MsxContext	*msx_context_new_with_ctx	(GUsbContext	*usb_context);
-gboolean	 msx_context_coldplug		(MsxContext	*self,
-						 GError		**error);
-GPtrArray	*msx_context_get_devices	(MsxContext	*self);
+gboolean	 msx_device_close			(MsxDevice	*self,
+							 GError		**error);
+gboolean	 msx_device_open			(MsxDevice	*self,
+							 GError		**error);
+gboolean	 msx_device_refresh			(MsxDevice	*self,
+							 GError		**error);
+GBytes		*msx_device_send_command		(MsxDevice	*self,
+							 const gchar	*cmd,
+							 GError		**error);
+const gchar	*msx_device_get_serial_number		(MsxDevice	*self);
+const gchar	*msx_device_get_firmware_version1	(MsxDevice	*self);
+const gchar	*msx_device_get_firmware_version2	(MsxDevice	*self);
+gint		 msx_device_get_value			(MsxDevice	*self,
+							 const gchar	*key);
 
 G_END_DECLS
 
-#endif /* __MSX_CONTEXT_H */
+#endif /* __MSX_DEVICE_H */
