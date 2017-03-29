@@ -5,7 +5,7 @@ project('libmsx', 'c',
 )
 
 conf = configuration_data()
-conf.set('PACKAGE_VERSION', meson.project_version())
+conf.set_quoted('PACKAGE_VERSION', meson.project_version())
 
 # get suported warning flags
 test_args = [
