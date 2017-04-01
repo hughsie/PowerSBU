@@ -442,51 +442,25 @@ sbu_gui_get_element_by_type (SbuGui *self, SbuElementKind kind)
 }
 
 static gchar *
-sbu_gui_format_number (gdouble val, const gchar *suffix)
-{
-	GString *str = g_string_new (NULL);
-	gboolean kilo = FALSE;
-	const guint numdigits = 4;
-
-	/* big number */
-	if (val > 1000) {
-		kilo = TRUE;
-		g_string_printf (str, "%.2fk", val / 1000);
-	} else {
-		g_string_printf (str, "%.2f", val);
-	}
-	if (g_str_has_suffix (str->str, ".00"))
-		g_string_truncate (str, str->len - 3);
-	if (str->len > numdigits - kilo)
-		g_string_truncate (str, numdigits - kilo);
-	if (g_str_has_suffix (str->str, "."))
-		g_string_truncate (str, str->len - 1);
-	if (kilo)
-		g_string_append (str, "k");
-	g_string_append (str, suffix);
-	return g_string_free (str, FALSE);
-}
-
-static gchar *
 sbu_gui_format_voltage (SbuElement *element)
 {
 	if (sbu_element_get_voltage_max (element) > 0) {
-		g_autofree gchar *tmp1 = sbu_gui_format_number (sbu_element_get_voltage (element), "V");
-		g_autofree gchar *tmp2 = sbu_gui_format_number (sbu_element_get_voltage_max (element), "V");
+		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_element_get_voltage (element), "V");
+		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_element_get_voltage_max (element), "V");
 		return g_strdup_printf ("%s/%s", tmp1, tmp2);
 	}
-	return sbu_gui_format_number (sbu_element_get_voltage (element), "V");
+	return sbu_format_for_display (sbu_element_get_voltage (element), "V");
 }
 
 static gchar *
 sbu_gui_format_watts (SbuElement *element)
 {
 	if (sbu_element_get_power_max (element) > 0) {
-		g_autofree gchar *tmp1 = sbu_gui_format_number (sbu_element_get_power (element), "W");
-		g_autofree gchar *tmp2 = sbu_gui_format_number (sbu_element_get_power_max (element), "W");
+		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_element_get_power (element), "W");
+		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_element_get_power_max (element), "W");
 		return g_strdup_printf ("%s/%s", tmp1, tmp2);
 	}
-	return sbu_gui_format_number (sbu_element_get_power (element), "W");
+	return sbu_format_for_display (sbu_element_get_power (element), "W");
 }
 
 #define SBU_SVG_ID_TEXT_SERIAL_NUMBER		"tspan8822"

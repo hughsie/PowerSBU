@@ -25,6 +25,7 @@
 #include <glib-object.h>
 #include <math.h>
 
+#include "sbu-common.h"
 #include "sbu-database.h"
 #include "sbu-xml-modifier.h"
 
@@ -115,6 +116,34 @@ sbu_test_xml_modifier_func (void)
 	g_assert_cmpstr (str->str, ==, xml_out);
 }
 
+
+static void
+sbu_test_common_func (void)
+{
+	struct {
+		gdouble		 val;
+		const gchar	*str;
+	} data[] = {
+		{ 0.f,		"0W" },
+		{ 0.12f,	"0.1W" },
+		{ 9.f,		"9W" },
+		{ 99.f,		"99W" },
+		{ 99.9f,	"99.9W" },
+		{ 999.f,	"999W" },
+		{ 1200.f,	"1.2kW" },
+		{ 1234.f,	"1.2kW" },
+		{ -1234.f,	"-1.2kW" },
+		{ 0.0f,		NULL }
+	};
+
+	for (guint i = 0; i < SBU_ELEMENT_KIND_LAST; i++)
+		g_assert_cmpstr (sbu_element_kind_to_string (i), !=, NULL);
+	for (guint i= 0; data[i].str != NULL; i++) {
+		g_autofree gchar *tmp = sbu_format_for_display (data[i].val, "W");
+		g_assert_cmpstr (tmp, ==, data[i].str);
+	}
+}
+
 int
 main (int argc, char **argv)
 {
@@ -124,6 +153,7 @@ main (int argc, char **argv)
 
 	/* tests go here */
 	g_test_add_func ("/database", sbu_test_database_func);
+	g_test_add_func ("/common", sbu_test_common_func);
 	g_test_add_func ("/xml-modifier", sbu_test_xml_modifier_func);
 
 	return g_test_run ();

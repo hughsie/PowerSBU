@@ -21,12 +21,15 @@
 #include "config.h"
 
 #include <glib.h>
+#include <math.h>
 
 #include "sbu-common.h"
 
 const gchar *
 sbu_element_kind_to_string (SbuElementKind kind)
 {
+	if (kind == SBU_ELEMENT_KIND_UNKNOWN)
+		return "unknown";
 	if (kind == SBU_ELEMENT_KIND_SOLAR)
 		return "solar";
 	if (kind == SBU_ELEMENT_KIND_BATTERY)
@@ -36,4 +39,40 @@ sbu_element_kind_to_string (SbuElementKind kind)
 	if (kind == SBU_ELEMENT_KIND_LOAD)
 		return "load";
 	return NULL;
+}
+
+gchar *
+sbu_format_for_display (gdouble val, const gchar *suffix)
+{
+	GString *str = g_string_new (NULL);
+	gboolean kilo = FALSE;
+	guint numdigits = 4;
+
+	/* leave room for negative */
+	if (val < 0)
+		numdigits++;
+
+	/* big number */
+	if (fabs (val) > 1000) {
+		kilo = TRUE;
+		numdigits--;
+		val /= 1000;
+	}
+	g_string_printf (str, "%.1f", val);
+
+	/* don't show trailing zeros */
+	if (g_str_has_suffix (str->str, ".0"))
+		g_string_truncate (str, str->len - 2);
+
+	/* truncate this down */
+	if (str->len > numdigits)
+		g_string_truncate (str, numdigits);
+	if (g_str_has_suffix (str->str, "."))
+		g_string_truncate (str, str->len - 1);
+	if (suffix != NULL) {
+		if (kilo)
+			g_string_append (str, "k");
+		g_string_append (str, suffix);
+	}
+	return g_string_free (str, FALSE);
 }

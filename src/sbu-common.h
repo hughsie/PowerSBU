@@ -40,6 +40,9 @@ typedef enum {
 
 const gchar	*sbu_element_kind_to_string	(SbuElementKind	 kind);
 
+gchar		*sbu_format_for_display		(gdouble	 val,
+						 const gchar	*suffix);
+
 G_END_DECLS
 
 #endif /* __SBU_COMMON_H__ */

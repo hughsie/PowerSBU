@@ -95,6 +95,7 @@ if get_option('enable-tests')
   e = executable(
     'sbu-self-test',
     sources : [
+      'sbu-common.c',
       'sbu-database.c',
       'sbu-self-test.c',
       'sbu-xml-modifier.c',
