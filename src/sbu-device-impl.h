@@ -28,7 +28,8 @@ G_BEGIN_DECLS
 #include "generated-gdbus.h"
 
 #include "sbu-common.h"
-#include "sbu-element-impl.h"
+#include "sbu-node-impl.h"
+#include "sbu-link-impl.h"
 
 typedef struct _SbuDeviceImpl SbuDeviceImpl;
 
@@ -42,10 +43,15 @@ GType		 sbu_device_impl_get_type		(void);
 SbuDeviceImpl	*sbu_device_impl_new			(void);
 const gchar	*sbu_device_impl_get_object_path	(SbuDeviceImpl	*self);
 void		 sbu_device_impl_export			(SbuDeviceImpl	*self);
-void		 sbu_device_impl_add_element		(SbuDeviceImpl	*self,
-							 SbuElementImpl	*element);
-SbuElementImpl	*sbu_device_impl_get_element_by_kind	(SbuDeviceImpl	*self,
-							 SbuElementKind	 kind);
+void		 sbu_device_impl_add_node		(SbuDeviceImpl	*self,
+							 SbuNodeImpl	*node);
+SbuNodeImpl	*sbu_device_impl_get_node		(SbuDeviceImpl	*self,
+							 SbuNodeKind	 kind);
+void		 sbu_device_impl_add_link		(SbuDeviceImpl	*self,
+							 SbuLinkImpl	*link);
+SbuLinkImpl	*sbu_device_impl_get_link		(SbuDeviceImpl	*self,
+							 SbuNodeKind	 src,
+							 SbuNodeKind	 dst);
 
 G_END_DECLS
 

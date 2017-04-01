@@ -35,7 +35,8 @@
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuManager, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuDevice, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuElement, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNode, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuLink, g_object_unref)
 
 typedef struct {
 	GCancellable		*cancellable;
@@ -205,34 +206,56 @@ sbu_util_query (SbuUtil *self, gchar **values, GError **error)
 }
 
 static gboolean
-sbu_util_dump_element (SbuUtil *self, const gchar *object_path, GError **error)
+sbu_util_dump_node (SbuUtil *self, const gchar *object_path, GError **error)
 {
-	g_auto(GStrv) elements = NULL;
-	g_autoptr(SbuElement) element = NULL;
+	g_autoptr(SbuNode) node = NULL;
 
-	g_print ("Querying element: %s\n", object_path);
-	element = sbu_element_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
-						      G_DBUS_PROXY_FLAGS_NONE,
-						      SBU_DBUS_NAME,
-						      object_path,
-						      self->cancellable,
-						      error);
-	if (element == NULL)
+	g_print ("Querying node: %s\n", object_path);
+	node = sbu_node_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
+						G_DBUS_PROXY_FLAGS_NONE,
+						SBU_DBUS_NAME,
+						object_path,
+						self->cancellable,
+						error);
+	if (node == NULL)
 		return FALSE;
 
-	/* show element properties */
-	g_print ("Kind:        %s\n", sbu_element_kind_to_string (sbu_element_get_kind (element)));
-	g_print ("Voltage:     %.2f\n", sbu_element_get_voltage (element));
-	g_print ("Current:     %.2f\n", sbu_element_get_current (element));
-	g_print ("Power:       %.2f\n", sbu_element_get_power (element));
-	g_print ("Frequency:   %.2f\n", sbu_element_get_frequency (element));
+	/* show node properties */
+	g_print ("Kind:        %s\n", sbu_node_kind_to_string (sbu_node_get_kind (node)));
+	g_print ("Voltage:     %.2f\n", sbu_node_get_voltage (node));
+	g_print ("Current:     %.2f\n", sbu_node_get_current (node));
+	g_print ("Power:       %.2f\n", sbu_node_get_power (node));
+	g_print ("Frequency:   %.2f\n", sbu_node_get_frequency (node));
+	return TRUE;
+}
+
+static gboolean
+sbu_util_dump_link (SbuUtil *self, const gchar *object_path, GError **error)
+{
+	g_autoptr(SbuLink) link = NULL;
+
+	g_print ("Querying link: %s\n", object_path);
+	link = sbu_link_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
+						G_DBUS_PROXY_FLAGS_NONE,
+						SBU_DBUS_NAME,
+						object_path,
+						self->cancellable,
+						error);
+	if (link == NULL)
+		return FALSE;
+
+	/* show link properties */
+	g_print ("Active:      %s\n", sbu_link_get_active (link) ? "yes" : "no");
+	g_print ("Source:      %s\n", sbu_node_kind_to_string (sbu_link_get_src (link)));
+	g_print ("Destination: %s\n", sbu_node_kind_to_string (sbu_link_get_dst (link)));
 	return TRUE;
 }
 
 static gboolean
 sbu_util_dump_device (SbuUtil *self, const gchar *object_path, GError **error)
 {
-	g_auto(GStrv) elements = NULL;
+	g_auto(GStrv) nodes = NULL;
+	g_auto(GStrv) links = NULL;
 	g_autoptr(SbuDevice) device = NULL;
 
 	g_print ("Querying device:  %s\n", object_path);
@@ -250,14 +273,25 @@ sbu_util_dump_device (SbuUtil *self, const gchar *object_path, GError **error)
 	g_print ("Description:      %s\n", sbu_device_get_description (device));
 	g_print ("Serial Number:    %s\n", sbu_device_get_serial_number (device));
 
-	/* show each element */
-	if (!sbu_device_call_get_elements_sync (device,
-						&elements,
-						self->cancellable,
-						error))
+	/* show each node */
+	if (!sbu_device_call_get_nodes_sync (device,
+					     &nodes,
+					     self->cancellable,
+					     error))
 		return FALSE;
-	for (guint i = 0; elements[i] != NULL; i++) {
-		if (!sbu_util_dump_element (self, elements[i], error))
+	for (guint i = 0; nodes[i] != NULL; i++) {
+		if (!sbu_util_dump_node (self, nodes[i], error))
+			return FALSE;
+	}
+
+	/* show each link */
+	if (!sbu_device_call_get_links_sync (device,
+					     &links,
+					     self->cancellable,
+					     error))
+		return FALSE;
+	for (guint i = 0; links[i] != NULL; i++) {
+		if (!sbu_util_dump_link (self, links[i], error))
 			return FALSE;
 	}
 

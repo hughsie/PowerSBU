@@ -26,6 +26,7 @@
 
 struct SbuPluginData {
 	guint		 timeout_id;
+	guint		 active_id;
 	SbuDeviceImpl	*device;
 };
 
@@ -47,11 +48,17 @@ dummy_device_add_cb (gpointer user_data)
 {
 	SbuPlugin *plugin = SBU_PLUGIN (user_data);
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
-	SbuElementKind kinds[] = { SBU_ELEMENT_KIND_SOLAR,
-				   SBU_ELEMENT_KIND_BATTERY,
-				   SBU_ELEMENT_KIND_UTILITY,
-				   SBU_ELEMENT_KIND_LOAD,
-				   SBU_ELEMENT_KIND_UNKNOWN };
+	SbuNodeKind nodes[] = { SBU_NODE_KIND_SOLAR,
+				SBU_NODE_KIND_BATTERY,
+				SBU_NODE_KIND_UTILITY,
+				SBU_NODE_KIND_LOAD,
+				SBU_NODE_KIND_UNKNOWN };
+	SbuNodeKind links[] = { SBU_NODE_KIND_SOLAR,	SBU_NODE_KIND_BATTERY,
+				SBU_NODE_KIND_SOLAR,	SBU_NODE_KIND_LOAD,
+				SBU_NODE_KIND_BATTERY,	SBU_NODE_KIND_LOAD,
+				SBU_NODE_KIND_UTILITY,	SBU_NODE_KIND_LOAD,
+				SBU_NODE_KIND_UTILITY,	SBU_NODE_KIND_BATTERY,
+				SBU_NODE_KIND_UNKNOWN,	SBU_NODE_KIND_UNKNOWN };
 
 	/* create fake device */
 	self->device = sbu_device_impl_new ();
@@ -61,20 +68,31 @@ dummy_device_add_cb (gpointer user_data)
 		      "serial-number", "007",
 		      NULL);
 
-	/* add all the elements */
-	for (guint i = 0; kinds[i] != SBU_ELEMENT_KIND_UNKNOWN; i++) {
-		g_autoptr(SbuElementImpl) element = sbu_element_impl_new ();
-		g_object_set (element,
-			      "kind", kinds[i],
-			      "voltage", 12.34f * kinds[i],
-			      "voltage-max", 12.34f * kinds[i] * 10,
+	/* add all the nodes */
+	for (guint i = 0; nodes[i] != SBU_NODE_KIND_UNKNOWN; i++) {
+		g_autoptr(SbuNodeImpl) node = sbu_node_impl_new ();
+		g_object_set (node,
+			      "kind", nodes[i],
+			      "voltage", 12.34f * nodes[i],
+			      "voltage-max", 12.34f * nodes[i] * 10,
 			      "current", 56.78f,
 			      "current-max", 56.78f * 10,
 			      "power", 87.65f,
 			      "power-max", 87.65f * 10,
 			      "frequency", 43.21f,
 			      NULL);
-		sbu_device_impl_add_element (self->device, element);
+		sbu_device_impl_add_node (self->device, node);
+	}
+
+	/* add all the links */
+	for (guint i = 0; links[i] != SBU_NODE_KIND_UNKNOWN; i += 2) {
+		g_autoptr(SbuLinkImpl) link = sbu_link_impl_new ();
+		g_object_set (link,
+			      "src", links[i+0],
+			      "dst", links[i+1],
+			      "active", TRUE,
+			      NULL);
+		sbu_device_impl_add_link (self->device, link);
 	}
 
 	/* add the device */
@@ -85,24 +103,39 @@ dummy_device_add_cb (gpointer user_data)
 	return FALSE;
 }
 
+static gboolean
+dummy_device_active_cb (gpointer user_data)
+{
+	gboolean active;
+	SbuPlugin *plugin = SBU_PLUGIN (user_data);
+	SbuPluginData *self = sbu_plugin_get_data (plugin);
+	SbuLinkImpl *link = sbu_device_impl_get_link (self->device,
+						      SBU_NODE_KIND_SOLAR,
+						      SBU_NODE_KIND_BATTERY);
+	g_assert (link != NULL);
+	g_object_get (link, "active", &active, NULL);
+	g_object_set (link, "active", !active, NULL);
+	return TRUE;
+}
+
 gboolean
 sbu_plugin_refresh (SbuPlugin *plugin, GCancellable *cancellable, GError **error)
 {
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
-	SbuElementImpl *element = NULL;
+	SbuNodeImpl *node = NULL;
 	gdouble val;
 
 	/* make the panel more volt-y */
-	element = sbu_device_impl_get_element_by_kind (self->device, SBU_ELEMENT_KIND_BATTERY);
-	g_assert (element != NULL);
-	g_object_get (element, "voltage", &val, NULL);
-	g_object_set (element, "voltage", val + 10, NULL);
+	node = sbu_device_impl_get_node (self->device, SBU_NODE_KIND_BATTERY);
+	g_assert (node != NULL);
+	g_object_get (node, "voltage", &val, NULL);
+	g_object_set (node, "voltage", val + 10, NULL);
 
 	/* make the utlity more powerful */
-	element = sbu_device_impl_get_element_by_kind (self->device, SBU_ELEMENT_KIND_UTILITY);
-	g_assert (element != NULL);
-	g_object_get (element, "power", &val, NULL);
-	g_object_set (element, "power", val + 100, NULL);
+	node = sbu_device_impl_get_node (self->device, SBU_NODE_KIND_UTILITY);
+	g_assert (node != NULL);
+	g_object_get (node, "power", &val, NULL);
+	g_object_set (node, "power", val + 100, NULL);
 
 	/* save raw value */
 	sbu_plugin_update_metadata (plugin, self->device, "TestKey", 123456);
@@ -114,6 +147,7 @@ sbu_plugin_setup (SbuPlugin *plugin, GCancellable *cancellable, GError **error)
 {
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
 	self->timeout_id = g_timeout_add_seconds (2, dummy_device_add_cb, plugin);
+	self->active_id = g_timeout_add_seconds (5, dummy_device_active_cb, plugin);
 	return TRUE;
 }
 
@@ -124,4 +158,6 @@ sbu_plugin_destroy (SbuPlugin *plugin)
 	g_object_unref (self->device);
 	if (self->timeout_id != 0)
 		g_source_remove (self->timeout_id);
+	if (self->active_id != 0)
+		g_source_remove (self->active_id);
 }

@@ -26,17 +26,17 @@
 #include "sbu-common.h"
 
 const gchar *
-sbu_element_kind_to_string (SbuElementKind kind)
+sbu_node_kind_to_string (SbuNodeKind kind)
 {
-	if (kind == SBU_ELEMENT_KIND_UNKNOWN)
+	if (kind == SBU_NODE_KIND_UNKNOWN)
 		return "unknown";
-	if (kind == SBU_ELEMENT_KIND_SOLAR)
+	if (kind == SBU_NODE_KIND_SOLAR)
 		return "solar";
-	if (kind == SBU_ELEMENT_KIND_BATTERY)
+	if (kind == SBU_NODE_KIND_BATTERY)
 		return "battery";
-	if (kind == SBU_ELEMENT_KIND_UTILITY)
+	if (kind == SBU_NODE_KIND_UTILITY)
 		return "utility";
-	if (kind == SBU_ELEMENT_KIND_LOAD)
+	if (kind == SBU_NODE_KIND_LOAD)
 		return "load";
 	return NULL;
 }

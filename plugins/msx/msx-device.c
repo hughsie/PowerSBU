@@ -35,7 +35,7 @@ struct _MsxDevice
 	gchar			*serial_number;
 	gchar			*firmware_version1;
 	gchar			*firmware_version2;
-	GHashTable		*hash;	/* key : int */
+	GHashTable		*hash;	/* MsxDeviceKey : int */
 };
 
 enum {
@@ -273,19 +273,22 @@ msx_device_rescan_serial_number (MsxDevice *self, GError **error)
 
 typedef struct {
 	gsize		 off;
-	const gchar	*key;
+	MsxDeviceKey	 key;
 } MsxDeviceBufferOffsets;
 
 static void
-msx_device_emit_changed (MsxDevice *self, const gchar *key, gint val)
+msx_device_emit_changed (MsxDevice *self, MsxDeviceKey key, gint val)
 {
-	gint *val_ptr = g_hash_table_lookup (self->hash, key);
+	gpointer hash_key = GUINT_TO_POINTER (key);
+	gint *val_ptr = g_hash_table_lookup (self->hash, hash_key);
 	if (val_ptr == NULL) {
 		val_ptr = g_new0 (gint, 1);
-		g_hash_table_insert (self->hash, g_strdup (key), val_ptr);
-		g_debug ("cache add new %s=%i", key, val);
+		g_hash_table_insert (self->hash, hash_key, val_ptr);
+		g_debug ("cache add new %s=%i",
+			 sbu_device_key_to_string (key), val);
 	} else if (*val_ptr == val) {
-		g_debug ("cache ignore duplicate %s=%i", key, val);
+		g_debug ("cache ignore duplicate %s=%i",
+			 sbu_device_key_to_string (key), val);
 		return;
 	}
 
@@ -295,9 +298,10 @@ msx_device_emit_changed (MsxDevice *self, const gchar *key, gint val)
 }
 
 gint
-msx_device_get_value (MsxDevice *self, const gchar *key)
+msx_device_get_value (MsxDevice *self, MsxDeviceKey key)
 {
-	gint *val_ptr = g_hash_table_lookup (self->hash, key);
+	gpointer hash_key = GUINT_TO_POINTER (key);
+	gint *val_ptr = g_hash_table_lookup (self->hash, hash_key);
 	if (val_ptr == NULL)
 		return 0;
 	return *val_ptr;
@@ -313,7 +317,7 @@ msx_device_buffer_parse (MsxDevice *self, GBytes *response,
 	guint i;
 
 	/* check the size */
-	for (i = 0; offsets[i].key != NULL; i++);
+	for (i = 0; offsets[i].key != MSX_DEVICE_KEY_UNKNOWN; i++);
 	data = g_bytes_get_data (response, &len);
 	if (len != offsets[i].off) {
 		g_set_error (error,
@@ -325,12 +329,13 @@ msx_device_buffer_parse (MsxDevice *self, GBytes *response,
 	}
 
 	/* parse each value */
-	for (i = 0; offsets[i].key != NULL; i++) {
+	for (i = 0; offsets[i].key != MSX_DEVICE_KEY_UNKNOWN; i++) {
 		gint val = msx_common_parse_int (data, offsets[i].off, len, error);
 		if (val == G_MAXINT) {
 			g_prefix_error (error,
 					"failed to parse %s @%02x: ",
-					offsets[i].key, (guint) offsets[i].off);
+					sbu_device_key_to_string (offsets[i].key),
+					(guint) offsets[i].off);
 			return FALSE;
 		}
 		msx_device_emit_changed (self, offsets[i].key, val);
@@ -345,7 +350,7 @@ msx_device_buffer_parse_bits (MsxDevice *self, GBytes *response,
 {
 	/* parse each value */
 	const gchar *data = g_bytes_get_data (response, NULL);
-	for (guint i = 0; offsets[i].key != NULL; i++) {
+	for (guint i = 0; offsets[i].key != MSX_DEVICE_KEY_UNKNOWN; i++) {
 		if (data[offsets[i].off] == '0') {
 			msx_device_emit_changed (self, offsets[i].key, 0);
 		} else if (data[offsets[i].off] == '1') {
@@ -355,7 +360,7 @@ msx_device_buffer_parse_bits (MsxDevice *self, GBytes *response,
 				     G_IO_ERROR,
 				     G_IO_ERROR_FAILED,
 				     "failed to parse %s @%02x: %c",
-				     offsets[i].key,
+				     sbu_device_key_to_string (offsets[i].key),
 				     (guint) offsets[i].off,
 				     data[offsets[i].off]);
 			return FALSE;
@@ -369,32 +374,32 @@ msx_device_rescan_device_rating (MsxDevice *self, GError **error)
 {
 	g_autoptr(GBytes) response = NULL;
 	MsxDeviceBufferOffsets buffer_offsets[] = {
-		{ 0x00,		"GridRatingVoltage" },
-		{ 0x06,		"GridRatingCurrent" },
-		{ 0x0b,		"AcOutputRatingVoltage" },
-		{ 0x11,		"AcOutputRatingFrequency" },
-		{ 0x16,		"AcOutputRatingCurrent" },
-		{ 0x1b,		"AcOutputRatingApparentPower" },
-		{ 0x20,		"AcOutputRatingActivePower" },
-		{ 0x25,		"BatteryRatingVoltage" },
-		{ 0x2a,		"BatteryRechargeVoltage" },
-		{ 0x2f,		"BatteryUnderVoltage" },
-		{ 0x34,		"BatteryBulkVoltage" },
-		{ 0x39,		"BatteryFloatVoltage" },
-		{ 0x3e,		"BatteryType" },
-		{ 0x40,		"PresentMaxAcChargingCurrent" },
-		{ 0x43,		"PresentMaxChargingCurrent" },
-		{ 0x46,		"InputVoltageRange" },
-		{ 0x48,		"OutputSourcePriority" },
-		{ 0x4a,		"ChargerSourcePriority" },
-		{ 0x4c,		"ParallelMaxNum" },
-		{ 0x4e,		"MachineType" },
-		{ 0x51,		"Topology" },
-		{ 0x53,		"OutputMode" },
-		{ 0x55,		"BatteryRedischargeVoltage" },
-		{ 0x5a,		"PvOkConditionForParallel" },
-		{ 0x5c,		"PvPowerBalance" },
-		{ 0x5d,		NULL }
+		{ 0x00,		MSX_DEVICE_KEY_GRID_RATING_VOLTAGE },
+		{ 0x06,		MSX_DEVICE_KEY_GRID_RATING_CURRENT },
+		{ 0x0b,		MSX_DEVICE_KEY_AC_OUTPUT_RATING_VOLTAGE },
+		{ 0x11,		MSX_DEVICE_KEY_AC_OUTPUT_RATING_FREQUENCY },
+		{ 0x16,		MSX_DEVICE_KEY_AC_OUTPUT_RATING_CURRENT },
+		{ 0x1b,		MSX_DEVICE_KEY_AC_OUTPUT_RATING_APPARENT_POWER },
+		{ 0x20,		MSX_DEVICE_KEY_AC_OUTPUT_RATING_ACTIVE_POWER },
+		{ 0x25,		MSX_DEVICE_KEY_BATTERY_RATING_VOLTAGE },
+		{ 0x2a,		MSX_DEVICE_KEY_BATTERY_RECHARGE_VOLTAGE },
+		{ 0x2f,		MSX_DEVICE_KEY_BATTERY_UNDER_VOLTAGE },
+		{ 0x34,		MSX_DEVICE_KEY_BATTERY_BULK_VOLTAGE },
+		{ 0x39,		MSX_DEVICE_KEY_BATTERY_FLOAT_VOLTAGE },
+		{ 0x3e,		MSX_DEVICE_KEY_BATTERY_TYPE },
+		{ 0x40,		MSX_DEVICE_KEY_PRESENT_MAX_AC_CHARGING_CURRENT },
+		{ 0x43,		MSX_DEVICE_KEY_PRESENT_MAX_CHARGING_CURRENT },
+		{ 0x46,		MSX_DEVICE_KEY_INPUT_VOLTAGE_RANGE },
+		{ 0x48,		MSX_DEVICE_KEY_OUTPUT_SOURCE_PRIORITY },
+		{ 0x4a,		MSX_DEVICE_KEY_CHARGER_SOURCE_PRIORITY },
+		{ 0x4c,		MSX_DEVICE_KEY_PARALLEL_MAX_NUM },
+		{ 0x4e,		MSX_DEVICE_KEY_MACHINE_TYPE },
+		{ 0x51,		MSX_DEVICE_KEY_TOPOLOGY },
+		{ 0x53,		MSX_DEVICE_KEY_OUTPUT_MODE },
+		{ 0x55,		MSX_DEVICE_KEY_BATTERY_REDISCHARGE_VOLTAGE },
+		{ 0x5a,		MSX_DEVICE_KEY_PV_OK_CONDITION_FOR_PARALLEL },
+		{ 0x5c,		MSX_DEVICE_KEY_PV_POWER_BALANCE },
+		{ 0x5d,		MSX_DEVICE_KEY_UNKNOWN }
 	};
 
 	/* parse the data buffer */
@@ -415,34 +420,34 @@ msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 {
 	g_autoptr(GBytes) response = NULL;
 	MsxDeviceBufferOffsets buffer_offsets[] = {
-		{ 0x00,		"GridVoltage" },
-		{ 0x06,		"GridFrequency" },
-		{ 0x0b,		"AcOutputVoltage" },
-		{ 0x11,		"AcOutputFrequency" },
-		{ 0x16,		"AcOutputPower" },
-		{ 0x1b,		"AcOutputActivePower" },
-		{ 0x20,		"MaximumPowerPercentage" },
-		{ 0x24,		"BusVoltage" },
-		{ 0x28,		"BatteryVoltage" },
-		{ 0x2e,		"BatteryCurrent" },
-		{ 0x32,		"BatteryCapacity" },
-		{ 0x36,		"InverterHeatSinkTemperature" },
-		{ 0x3b,		"PvInputCurrentForBattery" },
-		{ 0x40,		"PvInputVoltage" },
-		{ 0x46,		"BatteryVoltageFromScc" },
-		{ 0x4c,		"BatteryDischargeCurrent" },
-		{ 0x6a,		NULL }
+		{ 0x00,		MSX_DEVICE_KEY_GRID_VOLTAGE },
+		{ 0x06,		MSX_DEVICE_KEY_GRID_FREQUENCY },
+		{ 0x0b,		MSX_DEVICE_KEY_AC_OUTPUT_VOLTAGE },
+		{ 0x11,		MSX_DEVICE_KEY_AC_OUTPUT_FREQUENCY },
+		{ 0x16,		MSX_DEVICE_KEY_AC_OUTPUT_POWER },
+		{ 0x1b,		MSX_DEVICE_KEY_AC_OUTPUT_ACTIVE_POWER },
+		{ 0x20,		MSX_DEVICE_KEY_MAXIMUM_POWER_PERCENTAGE },
+		{ 0x24,		MSX_DEVICE_KEY_BUS_VOLTAGE },
+		{ 0x28,		MSX_DEVICE_KEY_BATTERY_VOLTAGE },
+		{ 0x2e,		MSX_DEVICE_KEY_BATTERY_CURRENT },
+		{ 0x32,		MSX_DEVICE_KEY_BATTERY_CAPACITY },
+		{ 0x36,		MSX_DEVICE_KEY_INVERTER_HEATSINK_TEMPERATURE },
+		{ 0x3b,		MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY },
+		{ 0x40,		MSX_DEVICE_KEY_PV_INPUT_VOLTAGE },
+		{ 0x46,		MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC },
+		{ 0x4c,		MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT },
+		{ 0x6a,		MSX_DEVICE_KEY_UNKNOWN }
 	};
 	MsxDeviceBufferOffsets buffer_bits[] = {
-		{ 0x52,		"AddSbuPriorityVersion" },
-		{ 0x53,		"ConfigurationStatusChange" },
-		{ 0x54,		"SccFirmwareVersionUpdated" },
-		{ 0x55,		"LoadStatusOn" },
-		{ 0x56,		"BatteryVoltageToSteadyWhileCharging" },
-		{ 0x57,		"ChargingOn" },
-		{ 0x58,		"ChargingOnSolar" },
-		{ 0x59,		"ChargingOnAC" },
-		{ 0x6a,		NULL }
+		{ 0x52,		MSX_DEVICE_KEY_ADD_SBU_PRIORITY_VERSION },
+		{ 0x53,		MSX_DEVICE_KEY_CONFIGURATION_STATUS_CHANGE },
+		{ 0x54,		MSX_DEVICE_KEY_SCC_FIRMWARE_VERSION_UPDATED },
+		{ 0x55,		MSX_DEVICE_KEY_LOAD_STATUS_ON },
+		{ 0x56,		MSX_DEVICE_KEY_BATTERY_VOLTAGE_TO_STEADY_WHILE_CHARGING },
+		{ 0x57,		MSX_DEVICE_KEY_CHARGING_ON },
+		{ 0x58,		MSX_DEVICE_KEY_CHARGING_ON_SOLAR },
+		{ 0x59,		MSX_DEVICE_KEY_CHARGING_ON_AC },
+		{ 0x6a,		MSX_DEVICE_KEY_UNKNOWN }
 	};
 
 	/* parse the data buffer */
@@ -603,7 +608,7 @@ msx_device_finalize (GObject *object)
 static void
 msx_device_init (MsxDevice *self)
 {
-	self->hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+	self->hash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
 }
 
 static void
@@ -616,7 +621,7 @@ msx_device_class_init (MsxDeviceClass *klass)
 		g_signal_new ("changed",
 			      G_TYPE_FROM_CLASS (object_class), G_SIGNAL_RUN_LAST,
 			      0, NULL, NULL, g_cclosure_marshal_generic,
-			      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_INT);
+			      G_TYPE_NONE, 1, G_TYPE_UINT, G_TYPE_INT);
 }
 
 /**

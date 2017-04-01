@@ -128,3 +128,106 @@ msx_common_parse_int (const gchar *buf, gsize off, gssize buflen, GError **error
 	return (val1 * 1000) + val2;
 }
 
+const gchar *
+sbu_device_key_to_string (MsxDeviceKey key)
+{
+	if (key == MSX_DEVICE_KEY_GRID_RATING_VOLTAGE)
+		return "GridRatingVoltage";
+	if (key == MSX_DEVICE_KEY_GRID_RATING_CURRENT)
+		return "GridRatingCurrent";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_RATING_VOLTAGE)
+		return "AcOutputRatingVoltage";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_RATING_FREQUENCY)
+		return "AcOutputRatingFrequency";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_RATING_CURRENT)
+		return "AcOutputRatingCurrent";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_RATING_APPARENT_POWER)
+		return "AcOutputRatingApparentPower";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_RATING_ACTIVE_POWER)
+		return "AcOutputRatingActivePower";
+	if (key == MSX_DEVICE_KEY_BATTERY_RATING_VOLTAGE)
+		return "BatteryRatingVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_RECHARGE_VOLTAGE)
+		return "BatteryRechargeVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_UNDER_VOLTAGE)
+		return "BatteryUnderVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_BULK_VOLTAGE)
+		return "BatteryBulkVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_FLOAT_VOLTAGE)
+		return "BatteryFloatVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_TYPE)
+		return "BatteryType";
+	if (key == MSX_DEVICE_KEY_PRESENT_MAX_AC_CHARGING_CURRENT)
+		return "PresentMaxAcChargingCurrent";
+	if (key == MSX_DEVICE_KEY_PRESENT_MAX_CHARGING_CURRENT)
+		return "PresentMaxChargingCurrent";
+	if (key == MSX_DEVICE_KEY_INPUT_VOLTAGE_RANGE)
+		return "InputVoltageRange";
+	if (key == MSX_DEVICE_KEY_OUTPUT_SOURCE_PRIORITY)
+		return "OutputSourcePriority";
+	if (key == MSX_DEVICE_KEY_CHARGER_SOURCE_PRIORITY)
+		return "ChargerSourcePriority";
+	if (key == MSX_DEVICE_KEY_PARALLEL_MAX_NUM)
+		return "ParallelMaxNum";
+	if (key == MSX_DEVICE_KEY_MACHINE_TYPE)
+		return "MachineType";
+	if (key == MSX_DEVICE_KEY_TOPOLOGY)
+		return "Topology";
+	if (key == MSX_DEVICE_KEY_OUTPUT_MODE)
+		return "OutputMode";
+	if (key == MSX_DEVICE_KEY_BATTERY_REDISCHARGE_VOLTAGE)
+		return "BatteryRedischargeVoltage";
+	if (key == MSX_DEVICE_KEY_PV_OK_CONDITION_FOR_PARALLEL)
+		return "PvOkConditionForParallel";
+	if (key == MSX_DEVICE_KEY_PV_POWER_BALANCE)
+		return "PvPowerBalance";
+	if (key == MSX_DEVICE_KEY_GRID_VOLTAGE)
+		return "GridVoltage";
+	if (key == MSX_DEVICE_KEY_GRID_FREQUENCY)
+		return "GridFrequency";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_VOLTAGE)
+		return "AcOutputVoltage";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_FREQUENCY)
+		return "AcOutputFrequency";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_POWER)
+		return "AcOutputPower";
+	if (key == MSX_DEVICE_KEY_AC_OUTPUT_ACTIVE_POWER)
+		return "AcOutputActivePower";
+	if (key == MSX_DEVICE_KEY_MAXIMUM_POWER_PERCENTAGE)
+		return "MaximumPowerPercentage";
+	if (key == MSX_DEVICE_KEY_BUS_VOLTAGE)
+		return "BusVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_VOLTAGE)
+		return "BatteryVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_CURRENT)
+		return "BatteryCurrent";
+	if (key == MSX_DEVICE_KEY_BATTERY_CAPACITY)
+		return "BatteryCapacity";
+	if (key == MSX_DEVICE_KEY_INVERTER_HEATSINK_TEMPERATURE)
+		return "InverterHeatSinkTemperature";
+	if (key == MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY)
+		return "PvInputCurrentForBattery";
+	if (key == MSX_DEVICE_KEY_PV_INPUT_VOLTAGE)
+		return "PvInputVoltage";
+	if (key == MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC)
+		return "BatteryVoltageFromScc";
+	if (key == MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT)
+		return "BatteryDischargeCurrent";
+	if (key == MSX_DEVICE_KEY_ADD_SBU_PRIORITY_VERSION)
+		return "AddSbuPriorityVersion";
+	if (key == MSX_DEVICE_KEY_CONFIGURATION_STATUS_CHANGE)
+		return "ConfigurationStatusChange";
+	if (key == MSX_DEVICE_KEY_SCC_FIRMWARE_VERSION_UPDATED)
+		return "SccFirmwareVersionUpdated";
+	if (key == MSX_DEVICE_KEY_LOAD_STATUS_ON)
+		return "LoadStatusOn";
+	if (key == MSX_DEVICE_KEY_BATTERY_VOLTAGE_TO_STEADY_WHILE_CHARGING)
+		return "BatteryVoltageToSteadyWhileCharging";
+	if (key == MSX_DEVICE_KEY_CHARGING_ON)
+		return "ChargingOn";
+	if (key == MSX_DEVICE_KEY_CHARGING_ON_SOLAR)
+		return "ChargingOnSolar";
+	if (key == MSX_DEVICE_KEY_CHARGING_ON_AC)
+		return "ChargingOnAC";
+	return NULL;
+}

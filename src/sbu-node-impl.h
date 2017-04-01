@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef __SBU_ELEMENT_IMPL_H__
-#define __SBU_ELEMENT_IMPL_H__
+#ifndef __SBU_NODE_IMPL_H__
+#define __SBU_NODE_IMPL_H__
 
 G_BEGIN_DECLS
 
@@ -27,19 +27,19 @@ G_BEGIN_DECLS
 
 #include "generated-gdbus.h"
 
-typedef struct _SbuElementImpl SbuElementImpl;
+typedef struct _SbuNodeImpl SbuNodeImpl;
 
-#define SBU_TYPE_ELEMENT_IMPL	(sbu_element_impl_get_type ())
-#define SBU_ELEMENT_IMPL(o)	(G_TYPE_CHECK_INSTANCE_CAST ((o), SBU_TYPE_ELEMENT_IMPL, SbuElementImpl))
-#define SBU_IS_ELEMENT_IMPL(o)	(G_TYPE_CHECK_INSTANCE_TYPE ((o), SBU_TYPE_ELEMENT_IMPL))
+#define SBU_TYPE_NODE_IMPL	(sbu_node_impl_get_type ())
+#define SBU_NODE_IMPL(o)	(G_TYPE_CHECK_INSTANCE_CAST ((o), SBU_TYPE_NODE_IMPL, SbuNodeImpl))
+#define SBU_IS_NODE_IMPL(o)	(G_TYPE_CHECK_INSTANCE_TYPE ((o), SBU_TYPE_NODE_IMPL))
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuElement, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuElementImpl, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNode, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNodeImpl, g_object_unref)
 
-GType		 sbu_element_impl_get_type		(void);
-SbuElementImpl	*sbu_element_impl_new			(void);
-const gchar	*sbu_element_impl_get_object_path	(SbuElementImpl	*self);
+GType		 sbu_node_impl_get_type		(void);
+SbuNodeImpl	*sbu_node_impl_new		(void);
+const gchar	*sbu_node_impl_get_object_path	(SbuNodeImpl	*self);
 
 G_END_DECLS
 
-#endif /* __SBU_ELEMENT_IMPL_H__ */
+#endif /* __SBU_NODE_IMPL_H__ */

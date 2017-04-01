@@ -38,8 +38,11 @@
     <property name="FirmwareVersion" type="s" access="read"/>
     <property name="SerialNumber" type="s" access="read"/>
     <property name="Description" type="s" access="read"/>
-    <method name="GetElements">
-      <arg name="elements" direction="out" type="ao"/>
+    <method name="GetNodes">
+      <arg name="nodes" direction="out" type="ao"/>
+    </method>
+    <method name="GetLinks">
+      <arg name="links" direction="out" type="ao"/>
     </method>
     <method name="GetHistory">
       <arg name="key" direction="in" type="s"/>
@@ -51,7 +54,7 @@
 
   <!-- ********************************************************************** -->
 
-  <interface name="com.hughski.PowerSBU.Element">
+  <interface name="com.hughski.PowerSBU.Node">
     <property name="Kind" type="u" access="read"/>
     <property name="Voltage" type="d" access="read"/>
     <property name="VoltageMax" type="d" access="read"/>
@@ -60,6 +63,14 @@
     <property name="Power" type="d" access="read"/>
     <property name="PowerMax" type="d" access="read"/>
     <property name="Frequency" type="d" access="read"/>
+  </interface>
+
+  <!-- ********************************************************************** -->
+
+  <interface name="com.hughski.PowerSBU.Link">
+    <property name="Src" type="u" access="read"/>
+    <property name="Dst" type="u" access="read"/>
+    <property name="Active" type="b" access="read"/>
   </interface>
 
   <!-- ********************************************************************** -->

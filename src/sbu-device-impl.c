@@ -23,7 +23,7 @@
 #include <glib.h>
 
 #include "sbu-device-impl.h"
-#include "sbu-element-impl.h"
+#include "sbu-node-impl.h"
 
 typedef struct _SbuDeviceImplClass	SbuDeviceImplClass;
 
@@ -31,8 +31,9 @@ struct _SbuDeviceImpl
 {
 	SbuDeviceSkeleton		 parent_instance;
 	GDBusObjectManagerServer	*object_manager; /* no ref */
-	const gchar			*object_path;
-	GPtrArray			*elements;
+	gchar				*object_path;
+	GPtrArray			*nodes;
+	GPtrArray			*links;
 };
 
 struct _SbuDeviceImplClass
@@ -53,34 +54,73 @@ static void sbu_device_iface_init (SbuDeviceIface *iface);
 G_DEFINE_TYPE_WITH_CODE (SbuDeviceImpl, sbu_device_impl, SBU_TYPE_DEVICE_SKELETON,
 			 G_IMPLEMENT_INTERFACE(SBU_TYPE_DEVICE, sbu_device_iface_init));
 
-SbuElementImpl *
-sbu_device_impl_get_element_by_kind (SbuDeviceImpl *self, SbuElementKind kind)
+SbuNodeImpl *
+sbu_device_impl_get_node (SbuDeviceImpl *self, SbuNodeKind kind)
 {
-	for (guint i = 0; i < self->elements->len; i++) {
-		SbuElementKind kind_tmp;
-		SbuElementImpl *element = g_ptr_array_index (self->elements, i);
-		g_object_get (element, "kind", &kind_tmp, NULL);
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNodeKind kind_tmp;
+		SbuNodeImpl *node = g_ptr_array_index (self->nodes, i);
+		g_object_get (node, "kind", &kind_tmp, NULL);
 		if (kind == kind_tmp)
-			return element;
+			return node;
+	}
+	return NULL;
+}
+
+SbuLinkImpl *
+sbu_device_impl_get_link (SbuDeviceImpl *self, SbuNodeKind src, SbuNodeKind dst)
+{
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuNodeKind src_tmp;
+		SbuNodeKind dst_tmp;
+		SbuLinkImpl *link = g_ptr_array_index (self->links, i);
+		g_object_get (link,
+			      "src", &src_tmp,
+			      "dst", &dst_tmp,
+			      NULL);
+		if (src == src_tmp && dst == dst_tmp)
+			return link;
 	}
 	return NULL;
 }
 
 /* runs in thread dedicated to handling @invocation */
 static gboolean
-sbu_device_impl_get_elements (SbuDevice *_device,
+sbu_device_impl_get_nodes (SbuDevice *_device,
 			      GDBusMethodInvocation *invocation)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (_device);
 	GVariantBuilder builder;
 
-	g_debug ("handling GetElements");
+	g_debug ("handling GetNodes");
 	g_variant_builder_init (&builder, G_VARIANT_TYPE ("(ao)"));
 	g_variant_builder_open (&builder, G_VARIANT_TYPE ("ao"));
-	for (guint i = 0; i < self->elements->len; i++) {
-		SbuElementImpl *element = g_ptr_array_index (self->elements, i);
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNodeImpl *node = g_ptr_array_index (self->nodes, i);
 		g_variant_builder_add (&builder, "o",
-				       sbu_element_impl_get_object_path (element));
+				       sbu_node_impl_get_object_path (node));
+	}
+	g_variant_builder_close (&builder);
+	g_dbus_method_invocation_return_value (invocation,
+					       g_variant_builder_end (&builder));
+	return TRUE;
+}
+
+/* runs in thread dedicated to handling @invocation */
+static gboolean
+sbu_device_impl_get_links (SbuDevice *_device,
+			      GDBusMethodInvocation *invocation)
+{
+	SbuDeviceImpl *self = SBU_DEVICE_IMPL (_device);
+	GVariantBuilder builder;
+
+	g_debug ("handling GetLinks");
+	g_variant_builder_init (&builder, G_VARIANT_TYPE ("(ao)"));
+	g_variant_builder_open (&builder, G_VARIANT_TYPE ("ao"));
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuLinkImpl *link = g_ptr_array_index (self->links, i);
+		g_variant_builder_add (&builder, "o",
+				       sbu_link_impl_get_object_path (link));
 	}
 	g_variant_builder_close (&builder);
 	g_dbus_method_invocation_return_value (invocation,
@@ -89,9 +129,15 @@ sbu_device_impl_get_elements (SbuDevice *_device,
 }
 
 void
-sbu_device_impl_add_element (SbuDeviceImpl *self, SbuElementImpl *element)
+sbu_device_impl_add_node (SbuDeviceImpl *self, SbuNodeImpl *node)
 {
-	g_ptr_array_add (self->elements, g_object_ref (element));
+	g_ptr_array_add (self->nodes, g_object_ref (node));
+}
+
+void
+sbu_device_impl_add_link (SbuDeviceImpl *self, SbuLinkImpl *link)
+{
+	g_ptr_array_add (self->links, g_object_ref (link));
 }
 
 const gchar *
@@ -112,22 +158,34 @@ sbu_device_impl_export (SbuDeviceImpl *self)
 	g_dbus_object_manager_server_export (self->object_manager,
 					     G_DBUS_OBJECT_SKELETON (device_object));
 
-	/* and now each element */
-	for (guint i = 0; i < self->elements->len; i++) {
-		SbuElementImpl *element = g_ptr_array_index (self->elements, i);
-		g_autoptr(SbuObjectSkeleton) element_object = NULL;
-		element_object = sbu_object_skeleton_new (sbu_element_impl_get_object_path (element));
-		g_debug ("exporting element %s", sbu_element_impl_get_object_path (element));
-		sbu_object_skeleton_set_element (element_object, SBU_ELEMENT (element));
+	/* and now each node */
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNodeImpl *node = g_ptr_array_index (self->nodes, i);
+		g_autoptr(SbuObjectSkeleton) node_object = NULL;
+		node_object = sbu_object_skeleton_new (sbu_node_impl_get_object_path (node));
+		g_debug ("exporting node %s", sbu_node_impl_get_object_path (node));
+		sbu_object_skeleton_set_node (node_object, SBU_NODE (node));
 		g_dbus_object_manager_server_export (self->object_manager,
-						     G_DBUS_OBJECT_SKELETON (element_object));
+						     G_DBUS_OBJECT_SKELETON (node_object));
+	}
+
+	/* and now each link */
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuLinkImpl *link = g_ptr_array_index (self->links, i);
+		g_autoptr(SbuObjectSkeleton) link_object = NULL;
+		link_object = sbu_object_skeleton_new (sbu_link_impl_get_object_path (link));
+		g_debug ("exporting link %s", sbu_link_impl_get_object_path (link));
+		sbu_object_skeleton_set_link (link_object, SBU_LINK (link));
+		g_dbus_object_manager_server_export (self->object_manager,
+						     G_DBUS_OBJECT_SKELETON (link_object));
 	}
 }
 
 static void
 sbu_device_iface_init (SbuDeviceIface *iface)
 {
-	iface->handle_get_elements = sbu_device_impl_get_elements;
+	iface->handle_get_nodes = sbu_device_impl_get_nodes;
+	iface->handle_get_links = sbu_device_impl_get_links;
 }
 
 static void
@@ -164,10 +222,16 @@ sbu_device_impl_set_property (GObject *object,
 		g_assert (self->object_manager == NULL);
 		self->object_manager = g_value_get_object (value);
 
-		/* set for all elements */
-		for (guint i = 0; i < self->elements->len; i++) {
-			SbuElement *element = g_ptr_array_index (self->elements, i);
-			g_object_set (element,
+		/* set for all links and nodes */
+		for (guint i = 0; i < self->nodes->len; i++) {
+			SbuNode *node = g_ptr_array_index (self->nodes, i);
+			g_object_set (node,
+				      "object-manager", self->object_manager,
+				      NULL);
+		}
+		for (guint i = 0; i < self->links->len; i++) {
+			SbuLink *link = g_ptr_array_index (self->links, i);
+			g_object_set (link,
 				      "object-manager", self->object_manager,
 				      NULL);
 		}
@@ -176,12 +240,18 @@ sbu_device_impl_set_property (GObject *object,
 		g_assert (self->object_path == NULL);
 		self->object_path = g_value_dup_string (value);
 
-		/* set for all elements */
-		for (guint i = 0; i < self->elements->len; i++) {
-			SbuElement *element = g_ptr_array_index (self->elements, i);
+		/* set for all nodes and links */
+		for (guint i = 0; i < self->nodes->len; i++) {
+			SbuNode *node = g_ptr_array_index (self->nodes, i);
 			g_autofree gchar *object_path = NULL;
-			object_path = g_strdup_printf ("%s/%u", self->object_path, i);
-			g_object_set (element, "object-path", object_path, NULL);
+			object_path = g_strdup_printf ("%s/node_%u", self->object_path, i);
+			g_object_set (node, "object-path", object_path, NULL);
+		}
+		for (guint i = 0; i < self->links->len; i++) {
+			SbuLink *link = g_ptr_array_index (self->links, i);
+			g_autofree gchar *object_path = NULL;
+			object_path = g_strdup_printf ("%s/link_%u", self->object_path, i);
+			g_object_set (link, "object-path", object_path, NULL);
 		}
 
 		break;
@@ -196,14 +266,16 @@ sbu_device_impl_finalize (GObject *object)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (object);
 	g_free (self->object_path);
-	g_ptr_array_unref (self->elements);
+	g_ptr_array_unref (self->nodes);
+	g_ptr_array_unref (self->links);
 	G_OBJECT_CLASS (sbu_device_impl_parent_class)->finalize (object);
 }
 
 static void
 sbu_device_impl_init (SbuDeviceImpl *self)
 {
-	self->elements = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+	self->nodes = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+	self->links = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
 	g_dbus_interface_skeleton_set_flags (G_DBUS_INTERFACE_SKELETON (self),
 					     G_DBUS_INTERFACE_SKELETON_FLAGS_HANDLE_METHOD_INVOCATIONS_IN_THREAD);
 }

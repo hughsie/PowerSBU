@@ -22,20 +22,20 @@
 
 #include <glib.h>
 
-#include "sbu-element-impl.h"
+#include "sbu-node-impl.h"
 
-typedef struct _SbuElementImplClass	SbuElementImplClass;
+typedef struct _SbuNodeImplClass	SbuNodeImplClass;
 
-struct _SbuElementImpl
+struct _SbuNodeImpl
 {
-	SbuElementSkeleton		 parent_instance;
+	SbuNodeSkeleton			 parent_instance;
 	GDBusObjectManagerServer	*object_manager; /* no ref */
 	const gchar			*object_path;
 };
 
-struct _SbuElementImplClass
+struct _SbuNodeImplClass
 {
-	SbuElementSkeletonClass	 parent_class;
+	SbuNodeSkeletonClass		 parent_class;
 };
 
 enum
@@ -46,29 +46,29 @@ enum
 	PROP_LAST
 };
 
-static void sbu_element_iface_init (SbuElementIface *iface);
+static void sbu_node_iface_init (SbuNodeIface *iface);
 
-G_DEFINE_TYPE_WITH_CODE (SbuElementImpl, sbu_element_impl, SBU_TYPE_ELEMENT_SKELETON,
-			 G_IMPLEMENT_INTERFACE(SBU_TYPE_ELEMENT, sbu_element_iface_init));
+G_DEFINE_TYPE_WITH_CODE (SbuNodeImpl, sbu_node_impl, SBU_TYPE_NODE_SKELETON,
+			 G_IMPLEMENT_INTERFACE(SBU_TYPE_NODE, sbu_node_iface_init));
 
 const gchar *
-sbu_element_impl_get_object_path (SbuElementImpl *self)
+sbu_node_impl_get_object_path (SbuNodeImpl *self)
 {
 	return self->object_path;
 }
 
 static void
-sbu_element_iface_init (SbuElementIface *iface)
+sbu_node_iface_init (SbuNodeIface *iface)
 {
 }
 
 static void
-sbu_element_impl_get_property (GObject *object,
+sbu_node_impl_get_property (GObject *object,
 			 guint prop_id,
 			 GValue *value,
 			 GParamSpec *pspec)
 {
-	SbuElementImpl *self = SBU_ELEMENT_IMPL (object);
+	SbuNodeImpl *self = SBU_NODE_IMPL (object);
 
 	switch (prop_id) {
 	case PROP_OBJECT_MANAGER:
@@ -84,12 +84,12 @@ sbu_element_impl_get_property (GObject *object,
 }
 
 static void
-sbu_element_impl_set_property (GObject *object,
+sbu_node_impl_set_property (GObject *object,
 			 guint prop_id,
 			 const GValue *value,
 			 GParamSpec *pspec)
 {
-	SbuElementImpl *self = SBU_ELEMENT_IMPL (object);
+	SbuNodeImpl *self = SBU_NODE_IMPL (object);
 
 	switch (prop_id) {
 	case PROP_OBJECT_MANAGER:
@@ -107,28 +107,28 @@ sbu_element_impl_set_property (GObject *object,
 }
 
 static void
-sbu_element_impl_finalize (GObject *object)
+sbu_node_impl_finalize (GObject *object)
 {
-	SbuElementImpl *self = SBU_ELEMENT_IMPL (object);
+	SbuNodeImpl *self = SBU_NODE_IMPL (object);
 	g_free (self->object_path);
-	G_OBJECT_CLASS (sbu_element_impl_parent_class)->finalize (object);
+	G_OBJECT_CLASS (sbu_node_impl_parent_class)->finalize (object);
 }
 
 static void
-sbu_element_impl_init (SbuElementImpl *self)
+sbu_node_impl_init (SbuNodeImpl *self)
 {
 	g_dbus_interface_skeleton_set_flags (G_DBUS_INTERFACE_SKELETON (self),
 					     G_DBUS_INTERFACE_SKELETON_FLAGS_HANDLE_METHOD_INVOCATIONS_IN_THREAD);
 }
 
 static void
-sbu_element_impl_class_init (SbuElementImplClass *klass_element)
+sbu_node_impl_class_init (SbuNodeImplClass *klass_node)
 {
 	GObjectClass *klass;
-	klass = G_OBJECT_CLASS (klass_element);
-	klass->finalize = sbu_element_impl_finalize;
-	klass->set_property = sbu_element_impl_set_property;
-	klass->get_property = sbu_element_impl_get_property;
+	klass = G_OBJECT_CLASS (klass_node);
+	klass->finalize = sbu_node_impl_finalize;
+	klass->set_property = sbu_node_impl_set_property;
+	klass->get_property = sbu_node_impl_get_property;
 
 	g_object_class_install_property (klass,
 					 PROP_OBJECT_MANAGER,
@@ -145,10 +145,10 @@ sbu_element_impl_class_init (SbuElementImplClass *klass_element)
 							      G_PARAM_READWRITE));
 }
 
-SbuElementImpl *
-sbu_element_impl_new (void)
+SbuNodeImpl *
+sbu_node_impl_new (void)
 {
-	SbuElementImpl *element;
-	element = g_object_new (SBU_TYPE_ELEMENT_IMPL, NULL);
-	return SBU_ELEMENT_IMPL (element);
+	SbuNodeImpl *node;
+	node = g_object_new (SBU_TYPE_NODE_IMPL, NULL);
+	return SBU_NODE_IMPL (node);
 }

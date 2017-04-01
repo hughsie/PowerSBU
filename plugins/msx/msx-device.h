@@ -25,6 +25,8 @@
 
 #include <gusb.h>
 
+#include "msx-common.h"
+
 G_BEGIN_DECLS
 
 #define MSX_TYPE_DEVICE (msx_device_get_type ())
@@ -46,7 +48,7 @@ const gchar	*msx_device_get_serial_number		(MsxDevice	*self);
 const gchar	*msx_device_get_firmware_version1	(MsxDevice	*self);
 const gchar	*msx_device_get_firmware_version2	(MsxDevice	*self);
 gint		 msx_device_get_value			(MsxDevice	*self,
-							 const gchar	*key);
+							 MsxDeviceKey	 key);
 
 G_END_DECLS
 

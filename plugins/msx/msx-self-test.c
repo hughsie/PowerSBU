@@ -65,6 +65,10 @@ msx_test_common_func (void)
 
 	/* real world example */
 	g_assert_cmpint (msx_common_parse_int (raw, 0x1b, -1, NULL), ==, 3000000);
+
+	/* test enum to string */
+	for (guint i = 1; i < MSX_DEVICE_KEY_LAST; i++)
+		g_assert_cmpstr (sbu_device_key_to_string (i), !=, NULL);
 }
 
 int

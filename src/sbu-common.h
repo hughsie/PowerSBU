@@ -30,15 +30,15 @@ G_BEGIN_DECLS
 #define SBU_DBUS_PATH_MANAGER	"/com/hughski/PowerSBU/Manager"
 
 typedef enum {
-	SBU_ELEMENT_KIND_UNKNOWN,
-	SBU_ELEMENT_KIND_SOLAR,
-	SBU_ELEMENT_KIND_BATTERY,
-	SBU_ELEMENT_KIND_UTILITY,
-	SBU_ELEMENT_KIND_LOAD,
-	SBU_ELEMENT_KIND_LAST
-} SbuElementKind;
+	SBU_NODE_KIND_UNKNOWN,
+	SBU_NODE_KIND_SOLAR,
+	SBU_NODE_KIND_BATTERY,
+	SBU_NODE_KIND_UTILITY,
+	SBU_NODE_KIND_LOAD,
+	SBU_NODE_KIND_LAST
+} SbuNodeKind;
 
-const gchar	*sbu_element_kind_to_string	(SbuElementKind	 kind);
+const gchar	*sbu_node_kind_to_string	(SbuNodeKind	 kind);
 
 gchar		*sbu_format_for_display		(gdouble	 val,
 						 const gchar	*suffix);

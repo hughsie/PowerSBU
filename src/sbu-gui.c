@@ -38,7 +38,8 @@
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuManager, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuDevice, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuElement, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNode, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuLink, g_object_unref)
 
 typedef struct {
 	GtkBuilder	*builder;
@@ -50,7 +51,8 @@ typedef struct {
 	GtkSizeGroup	*details_sizegroup_title;
 	GtkSizeGroup	*details_sizegroup_value;
 	GtkWidget	*graph_widget;
-	GPtrArray	*elements;
+	GPtrArray	*nodes;
+	GPtrArray	*links;
 	guint		 refresh_id;
 	gint64		 history_interval;
 } SbuGui;
@@ -64,7 +66,8 @@ sbu_gui_self_free (SbuGui *self)
 		g_object_unref (self->device);
 	if (self->manager != NULL)
 		g_object_unref (self->manager);
-	g_ptr_array_unref (self->elements);
+	g_ptr_array_unref (self->nodes);
+	g_ptr_array_unref (self->links);
 	g_object_unref (self->builder);
 	g_object_unref (self->database);
 	g_object_unref (self->config);
@@ -169,6 +172,7 @@ sbu_gui_add_details_item (SbuGui *self, const gchar *key, gint value)
 static void
 sbu_gui_refresh_details (SbuGui *self)
 {
+	GtkWidget *widget;
 	g_autoptr(GHashTable) results = NULL;
 	g_autoptr(GList) keys = NULL;
 	g_autoptr(GError) error = NULL;
@@ -185,6 +189,8 @@ sbu_gui_refresh_details (SbuGui *self)
 		SbuDatabaseItem *item = g_hash_table_lookup (results, key);
 		sbu_gui_add_details_item (self, key, item->val);
 	}
+	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "listbox_details"));
+	gtk_list_box_invalidate_sort (GTK_LIST_BOX (widget));
 }
 
 static GPtrArray *
@@ -426,68 +432,107 @@ sbu_gui_refresh_history (SbuGui *self)
 	sbu_gui_add_history_item (self, "Battery Voltage");
 }
 
-static SbuElement *
-sbu_gui_get_element_by_type (SbuGui *self, SbuElementKind kind)
+static SbuNode *
+sbu_gui_get_node (SbuGui *self, SbuNodeKind kind)
 {
-	for (guint i = 0; i < self->elements->len; i++) {
-		SbuElement *element = g_ptr_array_index (self->elements, i);
-		SbuElementKind kind_tmp;
-		g_object_get (element, "kind", &kind_tmp, NULL);
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNode *node = g_ptr_array_index (self->nodes, i);
+		SbuNodeKind kind_tmp;
+		g_object_get (node, "kind", &kind_tmp, NULL);
 		if (kind == kind_tmp)
-			return element;
+			return node;
+	}
+	return NULL;
+}
+
+static SbuLink *
+sbu_gui_get_link (SbuGui *self, SbuNodeKind src, SbuNodeKind dst)
+{
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuLink *link = g_ptr_array_index (self->links, i);
+		SbuNodeKind src_tmp;
+		SbuNodeKind dst_tmp;
+		g_object_get (link,
+			      "src", &src_tmp,
+			      "dst", &dst_tmp,
+			      NULL);
+		if (src == src_tmp && dst == dst_tmp)
+			return link;
 	}
 	return NULL;
 }
 
 static gchar *
-sbu_gui_format_voltage (SbuElement *element)
+sbu_gui_format_voltage (SbuNode *node)
 {
-	if (sbu_element_get_voltage_max (element) > 0) {
-		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_element_get_voltage (element), "V");
-		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_element_get_voltage_max (element), "V");
+	if (sbu_node_get_voltage_max (node) > 0) {
+		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_node_get_voltage (node), "V");
+		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_node_get_voltage_max (node), "V");
 		return g_strdup_printf ("%s/%s", tmp1, tmp2);
 	}
-	return sbu_format_for_display (sbu_element_get_voltage (element), "V");
+	return sbu_format_for_display (sbu_node_get_voltage (node), "V");
 }
 
 static gchar *
-sbu_gui_format_watts (SbuElement *element)
+sbu_gui_format_watts (SbuNode *node)
 {
-	if (sbu_element_get_power_max (element) > 0) {
-		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_element_get_power (element), "W");
-		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_element_get_power_max (element), "W");
+	if (sbu_node_get_power_max (node) > 0) {
+		g_autofree gchar *tmp1 = sbu_format_for_display (sbu_node_get_power (node), "W");
+		g_autofree gchar *tmp2 = sbu_format_for_display (sbu_node_get_power_max (node), "W");
 		return g_strdup_printf ("%s/%s", tmp1, tmp2);
 	}
-	return sbu_format_for_display (sbu_element_get_power (element), "W");
+	return sbu_format_for_display (sbu_node_get_power (node), "W");
 }
 
 #define SBU_SVG_ID_TEXT_SERIAL_NUMBER		"tspan8822"
 #define SBU_SVG_ID_TEXT_FIRMWARE_VERSION	"tspan8818"
 #define SBU_SVG_ID_TEXT_DEVICE_MODEL		"tspan8814"
-#define SBU_SVG_ID_TEXT_SOLAR2UTILITY		"tspan8408"
+#define SBU_SVG_ID_TEXT_SOLAR_TO_UTILITY	"tspan8408"
 #define SBU_SVG_ID_TEXT_BATVOLT			"tspan8424"
 #define SBU_SVG_ID_TEXT_BAT2LOAD		"tspan8438"
 #define SBU_SVG_ID_TEXT_LOAD			"tspan8442"
 #define SBU_SVG_ID_TEXT_SOLAR			"tspan8410"
 #define SBU_SVG_ID_TEXT_UTILITY			"tspan8725"
-#define SBU_SVG_ID_PATH_SOLAR2UTILITY		"path5032"
+
+#define SBU_SVG_ID_PATH_SOLAR_TO_UTILITY	"path5032"
+#define SBU_SVG_ID_PATH_SOLAR_TO_LOAD		"path6089"
+#define SBU_SVG_ID_PATH_SOLAR_TO_BATTERY	"path6089-0"
+#define SBU_SVG_ID_PATH_UTILITY_TO_BATTERY	"path6089-9"
+#define SBU_SVG_ID_PATH_UTILITY_TO_LOAD		"path6089-5"
+#define SBU_SVG_ID_PATH_BATTERY_TO_LOAD		"path6089-06"
 
 #define SBU_SVG_OFFSCREEN			"-999"
+#define SBU_SVG_STYLE_INACTIVE			"fill:none;stroke:#cccccc;stroke-width:5;stroke-dasharray:5, 5;stroke-dashoffset:0"
+
+static void
+sbu_gui_refresh_overview_link (SbuLink *l, SbuXmlModifier *xml_mod, const gchar *id)
+{
+	gboolean active;
+	if (l == NULL) {
+		sbu_xml_modifier_replace_attr (xml_mod, id, "style", "");
+		return;
+	}
+	g_object_get (l, "active", &active, NULL);
+	if (!active) {
+		sbu_xml_modifier_replace_attr (xml_mod, id, "style", SBU_SVG_STYLE_INACTIVE);
+		return;
+	}
+}
 
 static void
 sbu_gui_refresh_overview (SbuGui *self)
 {
 	GtkWidget *widget;
-	g_autofree gchar *data = NULL;
 	g_autoptr(GBytes) bytes = NULL;
 	g_autoptr(GdkPixbuf) pixbuf = NULL;
 	g_autoptr(GError) error = NULL;
 	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(GString) svg_data = NULL;
-	SbuElement *element_battery;
-	SbuElement *element_load;
-	SbuElement *element_solar;
-	SbuElement *element_utility;
+	SbuNode *node_battery;
+	SbuNode *node_load;
+	SbuNode *node_solar;
+	SbuNode *node_utility;
+	SbuLink *l;
 	g_autoptr(SbuXmlModifier) xml_mod = sbu_xml_modifier_new ();
 
 	/* load GResource */
@@ -509,16 +554,28 @@ sbu_gui_refresh_overview (SbuGui *self)
 					sbu_device_get_description (self->device));
 
 	/* not supported yet */
-	sbu_xml_modifier_replace_attr (xml_mod, SBU_SVG_ID_TEXT_SOLAR2UTILITY,
+	sbu_xml_modifier_replace_attr (xml_mod, SBU_SVG_ID_TEXT_SOLAR_TO_UTILITY,
 				       "x", SBU_SVG_OFFSCREEN);
-	sbu_xml_modifier_replace_attr (xml_mod, SBU_SVG_ID_PATH_SOLAR2UTILITY,
-				       "style", "");
+
+	/* set up links to have the correct style */
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_SOLAR, SBU_NODE_KIND_UTILITY);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_SOLAR_TO_UTILITY);
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_SOLAR, SBU_NODE_KIND_LOAD);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_SOLAR_TO_LOAD);
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_SOLAR, SBU_NODE_KIND_BATTERY);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_SOLAR_TO_BATTERY);
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_BATTERY);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_UTILITY_TO_BATTERY);
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_LOAD);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_UTILITY_TO_LOAD);
+	l = sbu_gui_get_link (self, SBU_NODE_KIND_BATTERY, SBU_NODE_KIND_LOAD);
+	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_BATTERY_TO_LOAD);
 
 	/* replace string data */
-	element_battery = sbu_gui_get_element_by_type (self, SBU_ELEMENT_KIND_BATTERY);
-	if (element_battery != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_voltage (element_battery);
-		g_autofree gchar *tmp2 = sbu_gui_format_watts (element_battery);
+	node_battery = sbu_gui_get_node (self, SBU_NODE_KIND_BATTERY);
+	if (node_battery != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_voltage (node_battery);
+		g_autofree gchar *tmp2 = sbu_gui_format_watts (node_battery);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATVOLT, tmp);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BAT2LOAD, tmp2);
 	} else {
@@ -526,25 +583,25 @@ sbu_gui_refresh_overview (SbuGui *self)
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BAT2LOAD, "?");
 	}
 
-	element_load = sbu_gui_get_element_by_type (self, SBU_ELEMENT_KIND_LOAD);
-	if (element_load != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (element_load);
+	node_load = sbu_gui_get_node (self, SBU_NODE_KIND_LOAD);
+	if (node_load != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (node_load);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_LOAD, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_LOAD, "?");
 	}
 
-	element_solar = sbu_gui_get_element_by_type (self, SBU_ELEMENT_KIND_SOLAR);
-	if (element_solar != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (element_solar);
+	node_solar = sbu_gui_get_node (self, SBU_NODE_KIND_SOLAR);
+	if (node_solar != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (node_solar);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SOLAR, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SOLAR, "?");
 	}
 
-	element_utility = sbu_gui_get_element_by_type (self, SBU_ELEMENT_KIND_UTILITY);
-	if (element_utility != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (element_utility);
+	node_utility = sbu_gui_get_node (self, SBU_NODE_KIND_UTILITY);
+	if (node_utility != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (node_utility);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_UTILITY, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_UTILITY, "?");
@@ -574,7 +631,7 @@ sbu_gui_refresh_overview (SbuGui *self)
 }
 
 static gboolean
-sbu_gui_element_notify_delay_cb (gpointer user_data)
+sbu_gui_node_notify_delay_cb (gpointer user_data)
 {
 	SbuGui *self = (SbuGui *) user_data;
 	sbu_gui_refresh_overview (self);
@@ -583,19 +640,40 @@ sbu_gui_element_notify_delay_cb (gpointer user_data)
 }
 
 static void
-sbu_gui_element_notify_cb (GObject *gobject, GParamSpec *pspec, gpointer user_data)
+sbu_gui_refresh_overview_delay (SbuGui *self)
 {
-	SbuGui *self = (SbuGui *) user_data;
 	if (self->refresh_id != 0)
 		g_source_remove (self->refresh_id);
-	self->refresh_id = g_timeout_add (100, sbu_gui_element_notify_delay_cb, self);
+	self->refresh_id = g_timeout_add (500, sbu_gui_node_notify_delay_cb, self);
+}
+
+static void
+sbu_gui_node_notify_cb (SbuNode *n, GParamSpec *pspec, gpointer user_data)
+{
+	SbuGui *self = (SbuGui *) user_data;
+	g_debug ("changed %s:%s",
+		 sbu_node_kind_to_string (sbu_node_get_kind (n)),
+		 g_param_spec_get_name (pspec));
+	sbu_gui_refresh_overview_delay (self);
+}
+
+static void
+sbu_gui_link_notify_cb (SbuLink *l, GParamSpec *pspec, gpointer user_data)
+{
+	SbuGui *self = (SbuGui *) user_data;
+	g_debug ("changed %s->%s:%s",
+		 sbu_node_kind_to_string (sbu_link_get_src (l)),
+		 sbu_node_kind_to_string (sbu_link_get_dst (l)),
+		 g_param_spec_get_name (pspec));
+	sbu_gui_refresh_overview_delay (self);
 }
 
 static gboolean
 sbu_gui_update_default_device (SbuGui *self, GError **error)
 {
 	g_auto(GStrv) devices = NULL;
-	g_auto(GStrv) elements = NULL;
+	g_auto(GStrv) nodes = NULL;
+	g_auto(GStrv) links = NULL;
 
 	/* get default device */
 	if (!sbu_manager_call_get_devices_sync (self->manager,
@@ -619,27 +697,50 @@ sbu_gui_update_default_device (SbuGui *self, GError **error)
 	if (self->device == NULL)
 		return FALSE;
 
-	/* show each element */
-	if (!sbu_device_call_get_elements_sync (self->device,
-						&elements,
+	/* show each node */
+	if (!sbu_device_call_get_nodes_sync (self->device,
+						&nodes,
 						self->cancellable,
 						error))
 		return FALSE;
-	for (guint i = 0; elements[i] != NULL; i++) {
-		g_autoptr(SbuElement) element = NULL;
-		g_debug ("using element: %s", elements[i]);
-		element = sbu_element_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
-							      G_DBUS_PROXY_FLAGS_NONE,
-							      SBU_DBUS_NAME,
-							      elements[i],
-							      self->cancellable,
-							      error);
-		if (element == NULL)
+	for (guint i = 0; nodes[i] != NULL; i++) {
+		g_autoptr(SbuNode) node = NULL;
+		g_debug ("using node: %s", nodes[i]);
+		node = sbu_node_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
+							G_DBUS_PROXY_FLAGS_NONE,
+							SBU_DBUS_NAME,
+							nodes[i],
+							self->cancellable,
+							error);
+		if (node == NULL)
 			return FALSE;
-		g_signal_connect (element, "notify",
-				  G_CALLBACK (sbu_gui_element_notify_cb),
+		g_signal_connect (node, "notify",
+				  G_CALLBACK (sbu_gui_node_notify_cb),
 				  self);
-		g_ptr_array_add (self->elements, g_object_ref (element));
+		g_ptr_array_add (self->nodes, g_object_ref (node));
+	}
+
+	/* show each link */
+	if (!sbu_device_call_get_links_sync (self->device,
+						&links,
+						self->cancellable,
+						error))
+		return FALSE;
+	for (guint i = 0; links[i] != NULL; i++) {
+		g_autoptr(SbuLink) link = NULL;
+		g_debug ("using link: %s", links[i]);
+		link = sbu_link_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
+							G_DBUS_PROXY_FLAGS_NONE,
+							SBU_DBUS_NAME,
+							links[i],
+							self->cancellable,
+							error);
+		if (link == NULL)
+			return FALSE;
+		g_signal_connect (link, "notify",
+				  G_CALLBACK (sbu_gui_link_notify_cb),
+				  self);
+		g_ptr_array_add (self->links, g_object_ref (link));
 	}
 
 	/* initial load */
@@ -667,6 +768,19 @@ sbu_gui_history_interval_changed_cb (GtkComboBox *combo_box, SbuGui *self)
 		g_assert_not_reached ();
 	}
 	sbu_gui_history_refresh_graph (self);
+}
+
+static gint
+sbu_gui_listbox_details_sort_cb (GtkListBoxRow *row1,
+				 GtkListBoxRow *row2,
+				 gpointer user_data)
+{
+	g_autoptr(GList) box1 = gtk_container_get_children (GTK_CONTAINER (row1));
+	g_autoptr(GList) box2 = gtk_container_get_children (GTK_CONTAINER (row2));
+	g_autoptr(GList) labels1 = gtk_container_get_children (GTK_CONTAINER (box1->data));
+	g_autoptr(GList) labels2 = gtk_container_get_children (GTK_CONTAINER (box2->data));
+	return g_strcmp0 (gtk_label_get_text (GTK_LABEL (labels1->data)),
+			  gtk_label_get_text (GTK_LABEL (labels2->data)));
 }
 
 static void
@@ -742,6 +856,11 @@ sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 	g_signal_connect (widget, "row-selected",
 			  G_CALLBACK (sbu_gui_history_row_selected_cb), self);
 
+	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "listbox_details"));
+	gtk_list_box_set_sort_func (GTK_LIST_BOX (widget),
+				    sbu_gui_listbox_details_sort_cb,
+				    self, NULL);
+
 	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "combobox_timespan"));
 	g_signal_connect (widget, "changed",
 			  G_CALLBACK (sbu_gui_history_interval_changed_cb), self);
@@ -760,7 +879,8 @@ sbu_gui_self_new (void)
 	self->config = sbu_config_new ();
 	self->database = sbu_database_new ();
 	self->builder = gtk_builder_new ();
-	self->elements = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+	self->nodes = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+	self->links = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
 	self->details_sizegroup_title = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
 	self->details_sizegroup_value = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
 	return self;
