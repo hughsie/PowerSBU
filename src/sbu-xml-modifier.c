@@ -147,6 +147,7 @@ sbu_xml_modifier_helper_free (SbuXmlHelper *helper)
 {
 	if (helper->out != NULL)
 		g_string_free (helper->out, TRUE);
+	g_free (helper->id);
 	g_free (helper);
 }
 
