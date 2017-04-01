@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-//#include <valgrind.h>
+#include <valgrind.h>
 
 #include "sbu-plugin-private.h"
 #include "sbu-plugin.h"
@@ -110,10 +110,10 @@ sbu_plugin_finalize (GObject *object)
 	g_free (priv->name);
 	g_free (priv->data);
 	g_hash_table_unref (priv->vfuncs);
-//#ifndef RUNNING_ON_VALGRIND
+#ifndef RUNNING_ON_VALGRIND
 	if (priv->module != NULL)
 		g_module_close (priv->module);
-//#endif
+#endif
 }
 
 SbuPluginData *

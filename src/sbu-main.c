@@ -36,6 +36,7 @@ typedef struct {
 	GMainLoop			*loop;
 	GOptionContext			*context;
 	guint				 name_owner_id;
+	guint				 timed_exit_id;
 	SbuManagerImpl			*manager;
 	GDBusObjectManagerServer	*object_manager;
 } SbuUtil;
@@ -115,11 +116,20 @@ sbu_main_self_new (void)
 	return self;
 }
 
+static gboolean
+sbu_main_timed_exit_cb (gpointer user_data)
+{
+	SbuUtil *self = (SbuUtil *) user_data;
+	g_main_loop_quit (self->loop);
+	return FALSE;
+}
+
 int
 main (int argc, char *argv[])
 {
 	g_autoptr(SbuUtil) self = sbu_main_self_new ();
 	gboolean ret;
+	gboolean timed_exit = FALSE;
 	gboolean verbose = FALSE;
 	g_autoptr(GError) error = NULL;
 
@@ -127,6 +137,9 @@ main (int argc, char *argv[])
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 			/* TRANSLATORS: command line option */
 			_("Show extra debugging information"), NULL },
+		{ "timed-exit", 'v', 0, G_OPTION_ARG_NONE, &timed_exit,
+			/* TRANSLATORS: command line option */
+			_("Exit after a small delay"), NULL },
 		{ NULL}
 	};
 
@@ -168,6 +181,13 @@ main (int argc, char *argv[])
 	/* set verbose? */
 	if (verbose)
 		g_setenv ("G_MESSAGES_DEBUG", "all", TRUE);
+
+	/* valgrinding */
+	if (timed_exit) {
+		self->timed_exit_id = g_timeout_add_seconds (15,
+							     sbu_main_timed_exit_cb,
+							     self);
+	}
 
 	/* try to own name */
 	self->name_owner_id = g_bus_own_name (G_BUS_TYPE_SYSTEM,

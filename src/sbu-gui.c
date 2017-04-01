@@ -92,13 +92,11 @@ sbu_gui_commandline_cb (GApplication *application,
 		{ NULL}
 	};
 
-	/* get arguments */
-	argv = g_application_command_line_get_arguments (cmdline, &argc);
-
 	context = g_option_context_new (NULL);
 	/* TRANSLATORS: the program name */
 	g_option_context_set_summary (context, _("PowerSBU GUI"));
 	g_option_context_add_main_entries (context, options, NULL);
+	argv = g_application_command_line_get_arguments (cmdline, &argc);
 	if (!g_option_context_parse (context, &argc, &argv, NULL))
 		return FALSE;
 

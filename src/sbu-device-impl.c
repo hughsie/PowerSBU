@@ -195,6 +195,7 @@ static void
 sbu_device_impl_finalize (GObject *object)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (object);
+	g_free (self->object_path);
 	g_ptr_array_unref (self->elements);
 	G_OBJECT_CLASS (sbu_device_impl_parent_class)->finalize (object);
 }

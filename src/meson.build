@@ -85,6 +85,7 @@ executable(
     sqlite3,
     gmodule,
     libm,
+    valgrind,
   ],
   c_args : cargs,
   install : true,

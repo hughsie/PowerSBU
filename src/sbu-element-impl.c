@@ -109,7 +109,8 @@ sbu_element_impl_set_property (GObject *object,
 static void
 sbu_element_impl_finalize (GObject *object)
 {
-//	SbuElementImpl *self = SBU_ELEMENT_IMPL (object);
+	SbuElementImpl *self = SBU_ELEMENT_IMPL (object);
+	g_free (self->object_path);
 	G_OBJECT_CLASS (sbu_element_impl_parent_class)->finalize (object);
 }
 
