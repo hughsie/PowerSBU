@@ -129,7 +129,6 @@ msx_device_send_command (MsxDevice *self, const gchar *cmd, GError **error)
 
 	/* copy in the footer: CRC then newline */
 	crc = GUINT16_TO_BE (msx_crc_half (buf, len));
-	g_debug ("crc = %04x", crc);
 	memcpy (buf + len, &crc, 2);
 	buf[len + 2] = '\r';
 
