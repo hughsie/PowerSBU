@@ -222,9 +222,15 @@ sbu_util_dump_node (SbuUtil *self, const gchar *object_path, GError **error)
 
 	/* show node properties */
 	g_print ("Kind:        %s\n", sbu_node_kind_to_string (sbu_node_get_kind (node)));
-	g_print ("Voltage:     %.2f\n", sbu_node_get_voltage (node));
-	g_print ("Current:     %.2f\n", sbu_node_get_current (node));
-	g_print ("Power:       %.2f\n", sbu_node_get_power (node));
+	g_print ("Power:       %.2f / %.2f\n",
+		 sbu_node_get_power (node),
+		 sbu_node_get_power_max (node));
+	g_print ("Current:     %.2f / %.2f\n",
+		 sbu_node_get_current (node),
+		 sbu_node_get_current_max (node));
+	g_print ("Voltage:     %.2f / %.2f\n",
+		 sbu_node_get_voltage (node),
+		 sbu_node_get_voltage_max (node));
 	g_print ("Frequency:   %.2f\n", sbu_node_get_frequency (node));
 	return TRUE;
 }
