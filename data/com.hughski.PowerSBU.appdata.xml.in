@@ -33,7 +33,7 @@
     </ul>
   </description>
   <screenshots>
-    <screenshot type="default">https://raw.githubusercontent.com/hughsie/libsbu/master/src/data/sbu-screenshot-history.png</screenshot>
+    <screenshot type="default">https://raw.githubusercontent.com/hughsie/PowerSBU/master/data/sbu-screenshot-history.png</screenshot>
   </screenshots>
   <releases>
     <release date="2017-03-28" version="0.1.1">
