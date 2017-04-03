@@ -775,7 +775,7 @@ msx_device_class_init (MsxDeviceClass *klass)
 		g_signal_new ("changed",
 			      G_TYPE_FROM_CLASS (object_class), G_SIGNAL_RUN_LAST,
 			      0, NULL, NULL, g_cclosure_marshal_generic,
-			      G_TYPE_NONE, 1, G_TYPE_UINT, G_TYPE_INT);
+			      G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_INT);
 }
 
 /**
