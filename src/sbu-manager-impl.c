@@ -176,7 +176,8 @@ sbu_manager_impl_plugins_add_device_cb (SbuPlugin *plugin,
 	g_autofree gchar *object_path = NULL;
 
 	/* just use the array position as the ID */
-	object_path = g_strdup_printf ("/com/hughski/PowerSBU/device/%u",
+	object_path = g_strdup_printf ("%s/%u",
+				       SBU_DBUS_PATH_DEVICE,
 				       self->devices->len);
 	g_debug ("adding device %s", object_path);
 	g_object_set (device,

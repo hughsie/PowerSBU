@@ -28,6 +28,7 @@ G_BEGIN_DECLS
 #define SBU_DBUS_NAME		"com.hughski.PowerSBU"
 #define SBU_DBUS_PATH		"com.hughski.PowerSBU"
 #define SBU_DBUS_PATH_MANAGER	"/com/hughski/PowerSBU/Manager"
+#define SBU_DBUS_PATH_DEVICE	"/com/hughski/PowerSBU/Device"
 
 typedef enum {
 	SBU_NODE_KIND_UNKNOWN,
