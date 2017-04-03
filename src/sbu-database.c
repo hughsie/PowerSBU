@@ -123,6 +123,9 @@ sbu_database_repair (SbuDatabase *self, GError **error)
 	statement = "DELETE FROM log WHERE val < 0;";
 	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
+	statement = "DELETE FROM log WHERE key == 'TestKey';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
 
 	return TRUE;
 }
