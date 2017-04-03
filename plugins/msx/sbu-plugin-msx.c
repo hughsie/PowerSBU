@@ -49,9 +49,9 @@ msx_device_update_node_battery_power (SbuDeviceImpl *device, MsxDevice *msx_devi
 {
 	SbuNodeImpl *n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
 	gint v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE);
-	gint a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_CURRENT);
+	gint a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
 	if (a == 0)
-		a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
+		a = -msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_CURRENT);
 	g_object_set (n, "power", msx_vals_to_double (v, a), NULL);
 }
 
@@ -68,10 +68,35 @@ static void
 msx_device_update_link_solar_load (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
 	gint b_chg = msx_device_get_value (msx_device, MSX_DEVICE_KEY_CHARGING_ON);
-	gint v_sol = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC);
+	gint v_sol = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_VOLTAGE);
 	gint p_out = msx_device_get_value (msx_device, MSX_DEVICE_KEY_AC_OUTPUT_POWER);
 	SbuLinkImpl *l = sbu_device_impl_get_link (device, SBU_NODE_KIND_SOLAR, SBU_NODE_KIND_LOAD);
 	g_object_set (l, "active", b_chg == 0 && v_sol > 0 && p_out > 0, NULL);
+}
+
+static void
+msx_device_update_node_utility_power (SbuDeviceImpl *device, MsxDevice *msx_device)
+{
+	SbuLinkImpl *l;
+	SbuNodeImpl *n;
+	SbuNodeImpl *n2;
+	gboolean active;
+	gdouble power_tmp;
+
+	/* we don't have any reading for input power or current so if
+	 * the link is active, copy the load value + 5W */
+	l = sbu_device_impl_get_link (device, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_LOAD);
+	g_object_get (l, "active", &active, NULL);
+	if (active) {
+		n2 = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
+		g_object_get (n2, "power", &power_tmp, NULL);
+		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
+		g_object_set (n, "power", power_tmp + 5, NULL);
+	} else {
+		/* not using utility */
+		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
+		g_object_set (n, "power", 0.f, NULL);
+	}
 }
 
 static void
@@ -79,9 +104,9 @@ msx_device_update_link_utility_load (SbuDeviceImpl *device, MsxDevice *msx_devic
 {
 	gint a_bat = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
 	gint v_uti = msx_device_get_value (msx_device, MSX_DEVICE_KEY_GRID_VOLTAGE);
-	gint p_out = msx_device_get_value (msx_device, MSX_DEVICE_KEY_AC_OUTPUT_POWER);
 	SbuLinkImpl *l = sbu_device_impl_get_link (device, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_LOAD);
-	g_object_set (l, "active", a_bat == 0 && v_uti > 0 && p_out > 0, NULL);
+	g_object_set (l, "active", a_bat == 0 && v_uti > 0, NULL);
+	msx_device_update_node_utility_power (device, msx_device);
 }
 
 static void
@@ -91,9 +116,9 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		       SbuPlugin *plugin)
 {
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
-	SbuNodeImpl *n = NULL;
 	SbuDeviceImpl *device = NULL;
 	SbuLinkImpl *l = NULL;
+	SbuNodeImpl *n = NULL;
 
 	device = g_hash_table_lookup (self->devices, msx_device);
 	g_assert (device != NULL);
@@ -150,6 +175,8 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_POWER:
 		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
+		/* MSX can't measure any power load less than 50W */
+		value = MAX (value, 20000);
 		g_object_set (n, "power", msx_val_to_double (value), NULL);
 		msx_device_update_link_solar_load (device, msx_device);
 		msx_device_update_link_utility_load (device, msx_device);
@@ -161,7 +188,7 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		break;
 	case MSX_DEVICE_KEY_BATTERY_CURRENT:
 		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "current", msx_val_to_double (value), NULL);
+		g_object_set (n, "current", -msx_val_to_double (value), NULL);
 		msx_device_update_node_battery_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY:

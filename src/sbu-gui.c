@@ -358,7 +358,7 @@ sbu_gui_history_setup_status (SbuGui *self)
 		      "type-y", EGG_GRAPH_WIDGET_KIND_FACTOR,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,
-		      "stop-y", (gdouble) 1.f,
+		      "stop-y", (gdouble) 0.01f,
 		      NULL);
 	sbu_gui_history_setup_lines (self, lines);
 }
@@ -487,9 +487,11 @@ sbu_gui_format_watts (SbuNode *node)
 #define SBU_SVG_ID_TEXT_SERIAL_NUMBER		"tspan8822"
 #define SBU_SVG_ID_TEXT_FIRMWARE_VERSION	"tspan8818"
 #define SBU_SVG_ID_TEXT_DEVICE_MODEL		"tspan8814"
+
 #define SBU_SVG_ID_TEXT_SOLAR_TO_UTILITY	"tspan8408"
-#define SBU_SVG_ID_TEXT_BATVOLT			"tspan8424"
-#define SBU_SVG_ID_TEXT_BAT2LOAD		"tspan8438"
+#define SBU_SVG_ID_TEXT_BATTERY_VOLTAGE		"tspan8424"
+#define SBU_SVG_ID_TEXT_BATTERY_TO_LOAD		"tspan8438"
+
 #define SBU_SVG_ID_TEXT_LOAD			"tspan8442"
 #define SBU_SVG_ID_TEXT_SOLAR			"tspan8410"
 #define SBU_SVG_ID_TEXT_UTILITY			"tspan8725"
@@ -528,10 +530,7 @@ sbu_gui_refresh_overview (SbuGui *self)
 	g_autoptr(GError) error = NULL;
 	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(GString) svg_data = NULL;
-	SbuNode *node_battery;
-	SbuNode *node_load;
-	SbuNode *node_solar;
-	SbuNode *node_utility;
+	SbuNode *n;
 	SbuLink *l;
 	g_autoptr(SbuXmlModifier) xml_mod = sbu_xml_modifier_new ();
 
@@ -571,37 +570,48 @@ sbu_gui_refresh_overview (SbuGui *self)
 	l = sbu_gui_get_link (self, SBU_NODE_KIND_BATTERY, SBU_NODE_KIND_LOAD);
 	sbu_gui_refresh_overview_link (l, xml_mod, SBU_SVG_ID_PATH_BATTERY_TO_LOAD);
 
-	/* replace string data */
-	node_battery = sbu_gui_get_node (self, SBU_NODE_KIND_BATTERY);
-	if (node_battery != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_voltage (node_battery);
-		g_autofree gchar *tmp2 = sbu_gui_format_watts (node_battery);
-		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATVOLT, tmp);
-		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BAT2LOAD, tmp2);
+	/* battery */
+	n = sbu_gui_get_node (self, SBU_NODE_KIND_BATTERY);
+	if (n != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_voltage (n);
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATTERY_VOLTAGE, tmp);
 	} else {
-		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATVOLT, "?");
-		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BAT2LOAD, "?");
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATTERY_VOLTAGE, "?");
+	}
+	if (n != NULL) {
+		if (sbu_node_get_power (n) < 0) {
+			sbu_xml_modifier_replace_attr (xml_mod, SBU_SVG_ID_TEXT_BATTERY_TO_LOAD,
+						       "x", SBU_SVG_OFFSCREEN);
+		} else {
+			g_autofree gchar *tmp = sbu_gui_format_watts (n);
+			sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATTERY_TO_LOAD, tmp);
+		}
+	} else {
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_BATTERY_TO_LOAD, "?");
 	}
 
-	node_load = sbu_gui_get_node (self, SBU_NODE_KIND_LOAD);
-	if (node_load != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (node_load);
+	/* load */
+	n = sbu_gui_get_node (self, SBU_NODE_KIND_LOAD);
+	if (n != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (n);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_LOAD, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_LOAD, "?");
 	}
 
-	node_solar = sbu_gui_get_node (self, SBU_NODE_KIND_SOLAR);
-	if (node_solar != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (node_solar);
+	/* solar */
+	n = sbu_gui_get_node (self, SBU_NODE_KIND_SOLAR);
+	if (n != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (n);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SOLAR, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SOLAR, "?");
 	}
 
-	node_utility = sbu_gui_get_node (self, SBU_NODE_KIND_UTILITY);
-	if (node_utility != NULL) {
-		g_autofree gchar *tmp = sbu_gui_format_watts (node_utility);
+	/* utility */
+	n = sbu_gui_get_node (self, SBU_NODE_KIND_UTILITY);
+	if (n != NULL) {
+		g_autofree gchar *tmp = sbu_gui_format_watts (n);
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_UTILITY, tmp);
 	} else {
 		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_UTILITY, "?");
