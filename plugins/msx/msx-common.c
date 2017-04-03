@@ -229,5 +229,23 @@ sbu_device_key_to_string (MsxDeviceKey key)
 		return "ChargingOnSolar";
 	if (key == MSX_DEVICE_KEY_CHARGING_ON_AC)
 		return "ChargingOnAC";
+	if (key == MSX_DEVICE_KEY_ENABLE_BUZZER)
+		return "EnableBuzzer";
+	if (key == MSX_DEVICE_KEY_OVERLOAD_BYPASS_FUNCTION)
+		return "OverloadBypassFunction";
+	if (key == MSX_DEVICE_KEY_POWER_SAVE)
+		return "PowerSave";
+	if (key == MSX_DEVICE_KEY_LCD_DISPLAY_ESCAPE)
+		return "LcdDisplayEscape";
+	if (key == MSX_DEVICE_KEY_OVERLOAD_RESTART)
+		return "OverloadRestart";
+	if (key == MSX_DEVICE_KEY_OVER_TEMPERATURE_RESTART)
+		return "OverTemperatureRestart";
+	if (key == MSX_DEVICE_KEY_LCD_BACKLIGHT)
+		return "LcdBacklight";
+	if (key == MSX_DEVICE_KEY_ALARM_PRIMARY_SOURCE_INTERRUPT)
+		return "AlarmPrimarySourceInterrupt";
+	if (key == MSX_DEVICE_KEY_FAULT_CODE_RECORD)
+		return "FaultCodeRecord";
 	return NULL;
 }

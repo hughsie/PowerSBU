@@ -416,6 +416,156 @@ msx_device_rescan_device_rating (MsxDevice *self, GError **error)
 }
 
 static gboolean
+msx_device_rescan_device_flags (MsxDevice *self, GError **error)
+{
+	const gchar *data;
+	gint val = 1;
+	gsize len = 0;
+	g_autoptr(GBytes) response = NULL;
+
+	/* send request */
+	response = msx_device_send_command (self, "QFLAG", error);
+	if (response == NULL) {
+		g_prefix_error (error, "failed to get device rating: ");
+		return FALSE;
+	}
+
+	/* check the size */
+	data = g_bytes_get_data (response, &len);
+	if (len != 11) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "got %" G_GSIZE_FORMAT " bytes, expected 11",
+			     len);
+		return FALSE;
+	}
+
+	/* parse */
+	for (gsize i = 0; i < len; i++) {
+		switch (data[i]) {
+		case 'D':
+			val = 0;
+			break;
+		case 'E':
+			val = 1;
+			break;
+		case 'a':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_ENABLE_BUZZER, val);
+			break;
+		case 'b':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_OVERLOAD_BYPASS_FUNCTION, val);
+			break;
+		case 'j':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_POWER_SAVE, val);
+			break;
+		case 'k':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_LCD_DISPLAY_ESCAPE, val);
+			break;
+		case 'u':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_OVERLOAD_RESTART, val);
+			break;
+		case 'v':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_OVER_TEMPERATURE_RESTART, val);
+			break;
+		case 'x':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_LCD_BACKLIGHT, val);
+			break;
+		case 'y':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_ALARM_PRIMARY_SOURCE_INTERRUPT, val);
+			break;
+		case 'z':
+			msx_device_emit_changed (self, MSX_DEVICE_KEY_FAULT_CODE_RECORD, val);
+			break;
+		default:
+			g_warning ("failed to parse flag '%c'", data[i]);
+			break;
+		}
+	}
+	return TRUE;
+}
+
+static gboolean
+msx_device_rescan_device_warning_status (MsxDevice *self, GError **error)
+{
+	const gchar *data;
+	gsize len = 0;
+	g_autoptr(GBytes) response = NULL;
+	struct {
+		gboolean	 is_fault;
+		const gchar	*msg;
+	} error_codes[] = {
+		{ TRUE,		"Reserved" },
+		{ TRUE,		"Inverter fault" },
+		{ TRUE,		"Bus Over" },
+		{ TRUE,		"Bus Under" },
+		{ TRUE,		"Bus Soft Fail" },
+		{ FALSE,	"LINE_FAIL" },
+		{ FALSE,	"OPVShort" },
+		{ TRUE,		"Inverter voltage too low" },
+		{ TRUE,		"Inverter voltage too high" },
+		{ FALSE,	"Over temperature" },
+		{ FALSE,	"Fan locked" },
+		{ FALSE,	"Battery voltage high" },
+		{ FALSE,	"Battery low alarm" },
+		{ TRUE,		"Reserved" },
+		{ FALSE,	"Battery under shutdown" },
+		{ FALSE,	"Reserved" },
+		{ FALSE,	"Overload" },
+		{ FALSE,	"Eeprom" },
+		{ TRUE,		"Inverter Over Current" },
+		{ TRUE,		"Inverter Soft Fail" },
+		{ TRUE,		"Self Test Fail" },
+		{ TRUE,		"OP DC Voltage Over" },
+		{ TRUE,		"Bat Open" },
+		{ TRUE,		"Current Sensor Fail" },
+		{ TRUE,		"Battery Short" },
+		{ FALSE,	"Power limit" },
+		{ FALSE,	"PV voltage high" },
+		{ FALSE,	"MPPT overload fault" },
+		{ FALSE,	"MPPT overload warning" },
+		{ FALSE,	"Battery too low to charge" },
+		{ TRUE,		"Reserved" },
+		{ TRUE,		"Reserved" },
+		{ FALSE,	NULL }
+	};
+
+	/* send request */
+	response = msx_device_send_command (self, "QPIWS", error);
+	if (response == NULL) {
+		g_prefix_error (error, "failed to get device rating: ");
+		return FALSE;
+	}
+
+	/* check the size */
+	data = g_bytes_get_data (response, &len);
+	if (len != 32) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "got %" G_GSIZE_FORMAT " bytes, expected 11",
+			     len);
+		return FALSE;
+	}
+
+	/* look for fatal errors */
+	for (gsize i = len - 1; i > 0; i--) {
+		if (data[i] != '1')
+			continue;
+		if (error_codes[i].is_fault || data[1] == '1') {
+			g_set_error (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_FAILED,
+				     "inverter error: %s",
+				     error_codes[i].msg);
+			return FALSE;
+		}
+		g_warning ("%s", error_codes[i].msg);
+	}
+	return TRUE;
+}
+
+static gboolean
 msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 {
 	g_autoptr(GBytes) response = NULL;
@@ -518,6 +668,10 @@ msx_device_refresh (MsxDevice *self, GError **error)
 	if (!msx_device_rescan_device_rating (self, error))
 		return FALSE;
 	if (!msx_device_rescan_device_general_status (self, error))
+		return FALSE;
+	if (!msx_device_rescan_device_flags (self, error))
+		return FALSE;
+	if (!msx_device_rescan_device_warning_status (self, error))
 		return FALSE;
 	return TRUE;
 }
