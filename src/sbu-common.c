@@ -63,6 +63,23 @@ sbu_device_property_to_string (SbuDeviceProperty key)
 	return NULL;
 }
 
+const gchar *
+sbu_device_property_to_unit (SbuDeviceProperty key)
+{
+	if (key == SBU_DEVICE_PROPERTY_VOLTAGE ||
+	    key == SBU_DEVICE_PROPERTY_VOLTAGE_MAX)
+		return "V";
+	if (key == SBU_DEVICE_PROPERTY_POWER ||
+	    key == SBU_DEVICE_PROPERTY_POWER_MAX)
+		return "W";
+	if (key == SBU_DEVICE_PROPERTY_CURRENT ||
+	    key == SBU_DEVICE_PROPERTY_CURRENT_MAX)
+		return "A";
+	if (key == SBU_DEVICE_PROPERTY_FREQUENCY)
+		return "Hz";
+	return NULL;
+}
+
 gchar *
 sbu_format_for_display (gdouble val, const gchar *suffix)
 {

@@ -53,6 +53,7 @@ typedef enum {
 
 const gchar	*sbu_node_kind_to_string	(SbuNodeKind	 kind);
 const gchar	*sbu_device_property_to_string	(SbuDeviceProperty value);
+const gchar	*sbu_device_property_to_unit	(SbuDeviceProperty value);
 
 gchar		*sbu_format_for_display		(gdouble	 val,
 						 const gchar	*suffix);

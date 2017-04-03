@@ -816,18 +816,17 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 		{ SBU_NODE_KIND_UNKNOWN,	GTK_POS_LEFT,	0.f,	0.f,	0.f }
 	};
 	struct {
-		const gchar *prop;
-		const gchar *suffix;
-		const gchar *title;
+		SbuDeviceProperty	 prop;
+		const gchar		*title;
 	} node_props[] = {
-		{ "power",		"W",	_("Power:") },
-		{ "power-max",		"W",	_("Power (Max):") },
-		{ "voltage",		"V",	_("Voltage:") },
-		{ "voltage-max",	"V",	_("Voltage (Max):") },
-		{ "current",		"A",	_("Current:") },
-		{ "current-max",	"A",	_("Current (Max):") },
-		{ "frequency",		"Hz",	_("Frequency:") },
-		{ NULL,		NULL,	NULL }
+		{ SBU_DEVICE_PROPERTY_POWER,		_("Power:") },
+		{ SBU_DEVICE_PROPERTY_POWER_MAX,	_("Max Power:") },
+		{ SBU_DEVICE_PROPERTY_VOLTAGE,		_("Voltage:") },
+		{ SBU_DEVICE_PROPERTY_VOLTAGE_MAX,	_("Max Voltage:") },
+		{ SBU_DEVICE_PROPERTY_CURRENT,		_("Current:") },
+		{ SBU_DEVICE_PROPERTY_CURRENT_MAX,	_("Max Current:") },
+		{ SBU_DEVICE_PROPERTY_FREQUENCY,	_("Frequency:") },
+		{ SBU_DEVICE_PROPERTY_UNKNOWN,		NULL }
 	};
 
 	/* not a left button click */
@@ -877,18 +876,21 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 	gtk_widget_set_margin_end (grid, 12);
 	gtk_widget_set_margin_top (grid, 12);
 	gtk_widget_set_margin_bottom (grid, 12);
-	for (guint i = 0; node_props[i].prop != NULL; i++) {
+	for (guint i = 0; node_props[i].prop != SBU_DEVICE_PROPERTY_UNKNOWN; i++) {
 		GtkWidget *title;
 		GtkWidget *value;
+		const gchar *key;
 		gdouble val;
 		g_autofree gchar *str = NULL;
 
-		g_object_get (n, node_props[i].prop, &val, NULL);
+		/* get value */
+		key = sbu_device_property_to_string (node_props[i].prop);
+		g_object_get (n, key, &val, NULL);
 		if (fabs (val) < 0.01f)
 			continue;
 
 		/* add widgets to grid */
-		str = sbu_format_for_display (val, node_props[i].suffix);
+		str = sbu_format_for_display (val, sbu_device_property_to_unit (node_props[i].prop));
 		title = gtk_label_new (node_props[i].title);
 		gtk_label_set_xalign (GTK_LABEL (title), 1.0);
 		gtk_grid_attach (GTK_GRID (grid), title,
