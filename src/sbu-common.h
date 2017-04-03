@@ -26,7 +26,7 @@ G_BEGIN_DECLS
 #include <glib.h>
 
 #define SBU_DBUS_NAME		"com.hughski.PowerSBU"
-#define SBU_DBUS_PATH		"com.hughski.PowerSBU"
+#define SBU_DBUS_INTERFACE	"com.hughski.PowerSBU"
 #define SBU_DBUS_PATH_MANAGER	"/com/hughski/PowerSBU/Manager"
 #define SBU_DBUS_PATH_DEVICE	"/com/hughski/PowerSBU/Device"
 
