@@ -41,6 +41,28 @@ sbu_node_kind_to_string (SbuNodeKind kind)
 	return NULL;
 }
 
+const gchar *
+sbu_device_property_to_string (SbuDeviceProperty key)
+{
+	if (key == SBU_DEVICE_PROPERTY_UNKNOWN)
+		return "unknown";
+	if (key == SBU_DEVICE_PROPERTY_VOLTAGE)
+		return "voltage";
+	if (key == SBU_DEVICE_PROPERTY_POWER)
+		return "power";
+	if (key == SBU_DEVICE_PROPERTY_CURRENT)
+		return "current";
+	if (key == SBU_DEVICE_PROPERTY_VOLTAGE_MAX)
+		return "voltage-max";
+	if (key == SBU_DEVICE_PROPERTY_POWER_MAX)
+		return "power-max";
+	if (key == SBU_DEVICE_PROPERTY_CURRENT_MAX)
+		return "current-max";
+	if (key == SBU_DEVICE_PROPERTY_FREQUENCY)
+		return "frequency";
+	return NULL;
+}
+
 gchar *
 sbu_format_for_display (gdouble val, const gchar *suffix)
 {

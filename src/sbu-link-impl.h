@@ -37,7 +37,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuLink, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuLinkImpl, g_object_unref)
 
 GType		 sbu_link_impl_get_type		(void);
-SbuLinkImpl	*sbu_link_impl_new		(void);
+SbuLinkImpl	*sbu_link_impl_new		(SbuNodeKind	 src,
+						 SbuNodeKind	 dst);
 const gchar	*sbu_link_impl_get_object_path	(SbuLinkImpl	*self);
 
 G_END_DECLS

@@ -47,55 +47,91 @@ msx_vals_to_double (gint value1, gint value2)
 static void
 msx_device_update_node_battery_power (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
-	SbuNodeImpl *n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
 	gint v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE);
 	gint a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
 	if (a == 0)
 		a = -msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_CURRENT);
-	g_object_set (n, "power", msx_vals_to_double (v, a), NULL);
+	sbu_device_impl_set_node_value (device,
+					SBU_NODE_KIND_BATTERY,
+					SBU_DEVICE_PROPERTY_POWER,
+					msx_vals_to_double (v, a));
 }
 
 static void
 msx_device_update_node_solar_power (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
-	SbuNodeImpl *n = sbu_device_impl_get_node (device, SBU_NODE_KIND_SOLAR);
 	gint v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC);
 	gint a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY);
-	g_object_set (n, "power", msx_vals_to_double (v, a), NULL);
+	sbu_device_impl_set_node_value (device,
+					SBU_NODE_KIND_SOLAR,
+					SBU_DEVICE_PROPERTY_POWER,
+					msx_vals_to_double (v, a));
 }
 
 static void
 msx_device_update_link_solar_load (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
-	gint b_chg = msx_device_get_value (msx_device, MSX_DEVICE_KEY_CHARGING_ON);
-	gint v_sol = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_VOLTAGE);
-	gint p_out = msx_device_get_value (msx_device, MSX_DEVICE_KEY_AC_OUTPUT_POWER);
-	SbuLinkImpl *l = sbu_device_impl_get_link (device, SBU_NODE_KIND_SOLAR, SBU_NODE_KIND_LOAD);
-	g_object_set (l, "active", b_chg == 0 && v_sol > 0 && p_out > 0, NULL);
+	gint src_prio = msx_device_get_value (msx_device, MSX_DEVICE_KEY_OUTPUT_SOURCE_PRIORITY);
+	if (src_prio / 1000 == MSX_DEVICE_OUTPUT_SOURCE_PRIORITY_SOLAR) {
+		/* link is active when:
+		 * 1. solar power is greater than load power
+		 * 2. solar voltage is present
+		 * 3. load power is present
+		 */
+		gdouble v_solr = sbu_device_impl_get_node_value (device,
+								 SBU_NODE_KIND_SOLAR,
+								 SBU_DEVICE_PROPERTY_VOLTAGE);
+		gdouble p_solr = sbu_device_impl_get_node_value (device,
+								 SBU_NODE_KIND_SOLAR,
+								 SBU_DEVICE_PROPERTY_POWER);
+		gdouble p_load = sbu_device_impl_get_node_value (device,
+								 SBU_NODE_KIND_LOAD,
+								 SBU_DEVICE_PROPERTY_POWER);
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_SOLAR,
+						 SBU_NODE_KIND_LOAD,
+						 v_solr > 0 && p_solr > p_load);
+	} else {
+		/* link is active when:
+		 * 1. battery is NOT charging
+		 * 2. solar voltage is present
+		 * 3. load power is present
+		 */
+		gint b_chg = msx_device_get_value (msx_device, MSX_DEVICE_KEY_CHARGING_ON);
+		gint v_sol = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_VOLTAGE);
+		gint p_out = msx_device_get_value (msx_device, MSX_DEVICE_KEY_AC_OUTPUT_POWER);
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_SOLAR,
+						 SBU_NODE_KIND_LOAD,
+						 b_chg == 0 && v_sol > 0 && p_out > 0);
+	}
 }
 
 static void
 msx_device_update_node_utility_power (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
-	SbuLinkImpl *l;
-	SbuNodeImpl *n;
-	SbuNodeImpl *n2;
 	gboolean active;
-	gdouble power_tmp;
 
 	/* we don't have any reading for input power or current so if
 	 * the link is active, copy the load value + 5W */
-	l = sbu_device_impl_get_link (device, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_LOAD);
-	g_object_get (l, "active", &active, NULL);
+	active = sbu_device_impl_get_link_active (device,
+						  SBU_NODE_KIND_UTILITY,
+						  SBU_NODE_KIND_LOAD);
 	if (active) {
-		n2 = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_get (n2, "power", &power_tmp, NULL);
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "power", power_tmp + 5, NULL);
+		gdouble tmp;
+		tmp = sbu_device_impl_get_node_value (device,
+						      SBU_NODE_KIND_LOAD,
+						      SBU_DEVICE_PROPERTY_POWER);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_POWER,
+						tmp + 5.f);
 	} else {
 		/* not using utility */
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "power", 0.f, NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_POWER,
+						0.f);
 	}
 }
 
@@ -104,8 +140,10 @@ msx_device_update_link_utility_load (SbuDeviceImpl *device, MsxDevice *msx_devic
 {
 	gint a_bat = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
 	gint v_uti = msx_device_get_value (msx_device, MSX_DEVICE_KEY_GRID_VOLTAGE);
-	SbuLinkImpl *l = sbu_device_impl_get_link (device, SBU_NODE_KIND_UTILITY, SBU_NODE_KIND_LOAD);
-	g_object_set (l, "active", a_bat == 0 && v_uti > 0, NULL);
+	sbu_device_impl_set_link_active (device,
+					 SBU_NODE_KIND_UTILITY,
+					 SBU_NODE_KIND_LOAD,
+					 a_bat == 0 && v_uti > 0);
 	msx_device_update_node_utility_power (device, msx_device);
 }
 
@@ -117,115 +155,148 @@ msx_device_changed_cb (MsxDevice *msx_device,
 {
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
 	SbuDeviceImpl *device = NULL;
-	SbuLinkImpl *l = NULL;
-	SbuNodeImpl *n = NULL;
 
 	device = g_hash_table_lookup (self->devices, msx_device);
 	g_assert (device != NULL);
 
 	switch (key) {
 	case MSX_DEVICE_KEY_GRID_RATING_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "voltage-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_VOLTAGE_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_GRID_RATING_CURRENT:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "current-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_CURRENT_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_RATING_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "voltage-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_VOLTAGE_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_RATING_FREQUENCY:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "frequency", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_FREQUENCY,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_RATING_CURRENT:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "current-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_CURRENT_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_RATING_ACTIVE_POWER:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "power-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_POWER_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_BATTERY_FLOAT_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "voltage-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_BATTERY,
+						SBU_DEVICE_PROPERTY_VOLTAGE_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_PRESENT_MAX_CHARGING_CURRENT:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "current-max", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_BATTERY,
+						SBU_DEVICE_PROPERTY_CURRENT_MAX,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_GRID_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "voltage", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_VOLTAGE,
+						msx_val_to_double (value));
 		msx_device_update_link_utility_load (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_GRID_FREQUENCY:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_UTILITY);
-		g_object_set (n, "frequency", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_UTILITY,
+						SBU_DEVICE_PROPERTY_FREQUENCY,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "voltage", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_VOLTAGE,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_FREQUENCY:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
-		g_object_set (n, "frequency", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_FREQUENCY,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_POWER:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_LOAD);
 		/* MSX can't measure any power load less than 50W */
-		value = MAX (value, 20000);
-		g_object_set (n, "power", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_LOAD,
+						SBU_DEVICE_PROPERTY_POWER,
+						MAX (msx_val_to_double (value), 20.f));
 		msx_device_update_link_solar_load (device, msx_device);
 		msx_device_update_link_utility_load (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_VOLTAGE:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "voltage", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_BATTERY,
+						SBU_DEVICE_PROPERTY_VOLTAGE,
+						msx_val_to_double (value));
 		msx_device_update_node_battery_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_CURRENT:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "current", -msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_BATTERY,
+						SBU_DEVICE_PROPERTY_CURRENT,
+						-msx_val_to_double (value));
 		msx_device_update_node_battery_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_SOLAR);
-		g_object_set (n, "current", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_SOLAR,
+						SBU_DEVICE_PROPERTY_CURRENT,
+						msx_val_to_double (value));
 		msx_device_update_node_solar_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_SOLAR);
-		g_object_set (n, "voltage", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_SOLAR,
+						SBU_DEVICE_PROPERTY_VOLTAGE,
+						msx_val_to_double (value));
 		msx_device_update_node_solar_power (device, msx_device);
 		msx_device_update_link_solar_load (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT:
-		n = sbu_device_impl_get_node (device, SBU_NODE_KIND_BATTERY);
-		g_object_set (n, "current", msx_val_to_double (value), NULL);
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_BATTERY,
+						SBU_DEVICE_PROPERTY_CURRENT,
+						msx_val_to_double (value));
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_BATTERY,
+						 SBU_NODE_KIND_LOAD,
+						 value >= 1);
 		msx_device_update_node_battery_power (device, msx_device);
-		l = sbu_device_impl_get_link (device,
-					      SBU_NODE_KIND_BATTERY,
-					      SBU_NODE_KIND_LOAD);
-		g_object_set (l, "active", value >= 1 ? TRUE : FALSE, NULL);
 		msx_device_update_link_utility_load (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_CHARGING_ON:
 		msx_device_update_link_solar_load (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_CHARGING_ON_SOLAR:
-		l = sbu_device_impl_get_link (device,
-					      SBU_NODE_KIND_SOLAR,
-					      SBU_NODE_KIND_BATTERY);
-		g_object_set (l, "active", value >= 1 ? TRUE : FALSE, NULL);
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_SOLAR,
+						 SBU_NODE_KIND_BATTERY,
+						 value >= 1);
 		break;
 	case MSX_DEVICE_KEY_CHARGING_ON_AC:
-		l = sbu_device_impl_get_link (device,
-					      SBU_NODE_KIND_UTILITY,
-					      SBU_NODE_KIND_BATTERY);
-		g_object_set (l, "active", value >= 1 ? TRUE : FALSE, NULL);
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_UTILITY,
+						 SBU_NODE_KIND_BATTERY,
+						 value >= 1);
 		break;
 	case MSX_DEVICE_KEY_AC_OUTPUT_ACTIVE_POWER:
 	case MSX_DEVICE_KEY_AC_OUTPUT_RATING_APPARENT_POWER:
@@ -320,16 +391,11 @@ msx_device_added_cb (MsxContext *context,
 	/* create device */
 	device = sbu_device_impl_new ();
 	for (guint i = 0; kinds[i] != SBU_NODE_KIND_UNKNOWN; i++) {
-		g_autoptr(SbuNodeImpl) node = sbu_node_impl_new ();
-		g_object_set (node, "kind", kinds[i], NULL);
+		g_autoptr(SbuNodeImpl) node = sbu_node_impl_new (kinds[i]);
 		sbu_device_impl_add_node (device, node);
 	}
 	for (guint i = 0; links[i] != SBU_NODE_KIND_UNKNOWN; i += 2) {
-		g_autoptr(SbuLinkImpl) link = sbu_link_impl_new ();
-		g_object_set (link,
-			      "src", links[i+0],
-			      "dst", links[i+1],
-			      NULL);
+		g_autoptr(SbuLinkImpl) link = sbu_link_impl_new (links[i], links[i+1]);
 		sbu_device_impl_add_link (device, link);
 	}
 

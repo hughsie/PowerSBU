@@ -84,6 +84,58 @@ sbu_device_impl_get_link (SbuDeviceImpl *self, SbuNodeKind src, SbuNodeKind dst)
 	return NULL;
 }
 
+gdouble
+sbu_device_impl_get_node_value (SbuDeviceImpl *self,
+				SbuNodeKind kind,
+				SbuDeviceProperty key)
+{
+	SbuNodeImpl *n;
+	gdouble val;
+	n = sbu_device_impl_get_node (self, kind);
+	if (n == NULL)
+		return 0.f;
+	g_object_get (n, sbu_device_property_to_string (key), &val, NULL);
+	return val;
+}
+
+void
+sbu_device_impl_set_node_value (SbuDeviceImpl *self,
+				SbuNodeKind kind,
+				SbuDeviceProperty key,
+				gdouble value)
+{
+	SbuNodeImpl *n = sbu_device_impl_get_node (self, kind);
+	if (n == NULL)
+		return;
+	g_object_set (n, sbu_device_property_to_string (key), value, NULL);
+}
+
+gboolean
+sbu_device_impl_get_link_active (SbuDeviceImpl *self,
+				 SbuNodeKind src,
+				 SbuNodeKind dst)
+{
+	gboolean value;
+	SbuLinkImpl *l = sbu_device_impl_get_link (self, src, dst);
+	if (l == NULL)
+		return FALSE;
+	g_object_get (l, "active", &value, NULL);
+	return value;
+}
+
+void
+sbu_device_impl_set_link_active (SbuDeviceImpl *self,
+				 SbuNodeKind src,
+				 SbuNodeKind dst,
+				 gboolean value)
+{
+	SbuLinkImpl *l = sbu_device_impl_get_link (self, src, dst);
+	if (l == NULL)
+		return;
+	g_object_set (l, "active", value, NULL);
+
+}
+
 /* runs in thread dedicated to handling @invocation */
 static gboolean
 sbu_device_impl_get_nodes (SbuDevice *_device,

@@ -27,6 +27,8 @@ G_BEGIN_DECLS
 
 #include "generated-gdbus.h"
 
+#include "sbu-common.h"
+
 typedef struct _SbuNodeImpl SbuNodeImpl;
 
 #define SBU_TYPE_NODE_IMPL	(sbu_node_impl_get_type ())
@@ -37,7 +39,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNode, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuNodeImpl, g_object_unref)
 
 GType		 sbu_node_impl_get_type		(void);
-SbuNodeImpl	*sbu_node_impl_new		(void);
+SbuNodeImpl	*sbu_node_impl_new		(SbuNodeKind	 kind);
 const gchar	*sbu_node_impl_get_object_path	(SbuNodeImpl	*self);
 
 G_END_DECLS

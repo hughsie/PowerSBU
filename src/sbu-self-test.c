@@ -138,6 +138,8 @@ sbu_test_common_func (void)
 
 	for (guint i = 0; i < SBU_NODE_KIND_LAST; i++)
 		g_assert_cmpstr (sbu_node_kind_to_string (i), !=, NULL);
+	for (guint i = 0; i < SBU_DEVICE_PROPERTY_LAST; i++)
+		g_assert_cmpstr (sbu_device_property_to_string (i), !=, NULL);
 	for (guint i= 0; data[i].str != NULL; i++) {
 		g_autofree gchar *tmp = sbu_format_for_display (data[i].val, "W");
 		g_assert_cmpstr (tmp, ==, data[i].str);

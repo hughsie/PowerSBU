@@ -22,6 +22,7 @@
 
 #include <glib.h>
 
+#include "sbu-common.h"
 #include "sbu-link-impl.h"
 
 typedef struct _SbuLinkImplClass	SbuLinkImplClass;
@@ -146,9 +147,12 @@ sbu_link_impl_class_init (SbuLinkImplClass *klass_link)
 }
 
 SbuLinkImpl *
-sbu_link_impl_new (void)
+sbu_link_impl_new (SbuNodeKind src, SbuNodeKind dst)
 {
 	SbuLinkImpl *link;
-	link = g_object_new (SBU_TYPE_LINK_IMPL, NULL);
+	link = g_object_new (SBU_TYPE_LINK_IMPL,
+			     "src", src,
+			     "dst", dst,
+			     NULL);
 	return SBU_LINK_IMPL (link);
 }

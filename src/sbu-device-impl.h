@@ -53,6 +53,20 @@ SbuLinkImpl	*sbu_device_impl_get_link		(SbuDeviceImpl	*self,
 							 SbuNodeKind	 src,
 							 SbuNodeKind	 dst);
 
+gdouble		 sbu_device_impl_get_node_value		(SbuDeviceImpl	*self,
+							 SbuNodeKind	 kind,
+							 SbuDeviceProperty key);
+void		 sbu_device_impl_set_node_value		(SbuDeviceImpl	*self,
+							 SbuNodeKind	 kind,
+							 SbuDeviceProperty key,
+							 gdouble	 value);
+gboolean	 sbu_device_impl_get_link_active	(SbuDeviceImpl	*self,
+							 SbuNodeKind	 src,
+							 SbuNodeKind	 dst);
+void		 sbu_device_impl_set_link_active	(SbuDeviceImpl	*self,
+							 SbuNodeKind	 src,
+							 SbuNodeKind	 dst,
+							 gboolean	 value);
 G_END_DECLS
 
 #endif /* __SBU_DEVICE_IMPL_H__ */

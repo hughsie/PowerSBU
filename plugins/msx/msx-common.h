@@ -89,6 +89,13 @@ typedef enum {
 	MSX_DEVICE_KEY_LAST
 } MsxDeviceKey;
 
+typedef enum {
+	MSX_DEVICE_OUTPUT_SOURCE_PRIORITY_UTILITY,
+	MSX_DEVICE_OUTPUT_SOURCE_PRIORITY_SOLAR,
+	MSX_DEVICE_OUTPUT_SOURCE_PRIORITY_SBU,
+	MSX_DEVICE_OUTPUT_SOURCE_PRIORITY_LAST
+} MsxDeviceOutputSourcePriority;
+
 gint		 msx_common_parse_int			(const gchar	*buf,
 							 gsize		 off,
 							 gssize		 buflen,

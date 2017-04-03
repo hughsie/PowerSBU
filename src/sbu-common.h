@@ -38,7 +38,20 @@ typedef enum {
 	SBU_NODE_KIND_LAST
 } SbuNodeKind;
 
+typedef enum {
+	SBU_DEVICE_PROPERTY_UNKNOWN,
+	SBU_DEVICE_PROPERTY_POWER,
+	SBU_DEVICE_PROPERTY_POWER_MAX,
+	SBU_DEVICE_PROPERTY_VOLTAGE,
+	SBU_DEVICE_PROPERTY_VOLTAGE_MAX,
+	SBU_DEVICE_PROPERTY_CURRENT,
+	SBU_DEVICE_PROPERTY_CURRENT_MAX,
+	SBU_DEVICE_PROPERTY_FREQUENCY,
+	SBU_DEVICE_PROPERTY_LAST
+} SbuDeviceProperty;
+
 const gchar	*sbu_node_kind_to_string	(SbuNodeKind	 kind);
+const gchar	*sbu_device_property_to_string	(SbuDeviceProperty value);
 
 gchar		*sbu_format_for_display		(gdouble	 val,
 						 const gchar	*suffix);

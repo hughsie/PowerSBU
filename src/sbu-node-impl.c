@@ -146,9 +146,11 @@ sbu_node_impl_class_init (SbuNodeImplClass *klass_node)
 }
 
 SbuNodeImpl *
-sbu_node_impl_new (void)
+sbu_node_impl_new (SbuNodeKind kind)
 {
 	SbuNodeImpl *node;
-	node = g_object_new (SBU_TYPE_NODE_IMPL, NULL);
+	node = g_object_new (SBU_TYPE_NODE_IMPL,
+			     "kind", kind,
+			     NULL);
 	return SBU_NODE_IMPL (node);
 }

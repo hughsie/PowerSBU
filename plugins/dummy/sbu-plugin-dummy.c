@@ -70,9 +70,8 @@ dummy_device_add_cb (gpointer user_data)
 
 	/* add all the nodes */
 	for (guint i = 0; nodes[i] != SBU_NODE_KIND_UNKNOWN; i++) {
-		g_autoptr(SbuNodeImpl) node = sbu_node_impl_new ();
+		g_autoptr(SbuNodeImpl) node = sbu_node_impl_new (nodes[i]);
 		g_object_set (node,
-			      "kind", nodes[i],
 			      "voltage", 12.34f * nodes[i],
 			      "voltage-max", 12.34f * nodes[i] * 10,
 			      "current", 56.78f,
@@ -86,12 +85,8 @@ dummy_device_add_cb (gpointer user_data)
 
 	/* add all the links */
 	for (guint i = 0; links[i] != SBU_NODE_KIND_UNKNOWN; i += 2) {
-		g_autoptr(SbuLinkImpl) link = sbu_link_impl_new ();
-		g_object_set (link,
-			      "src", links[i+0],
-			      "dst", links[i+1],
-			      "active", TRUE,
-			      NULL);
+		g_autoptr(SbuLinkImpl) link = sbu_link_impl_new (links[i], links[i+1]);
+		g_object_set (link, "active", TRUE, NULL);
 		sbu_device_impl_add_link (self->device, link);
 	}
 
@@ -106,15 +101,17 @@ dummy_device_add_cb (gpointer user_data)
 static gboolean
 dummy_device_active_cb (gpointer user_data)
 {
-	gboolean active;
 	SbuPlugin *plugin = SBU_PLUGIN (user_data);
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
-	SbuLinkImpl *link = sbu_device_impl_get_link (self->device,
-						      SBU_NODE_KIND_SOLAR,
-						      SBU_NODE_KIND_BATTERY);
-	g_assert (link != NULL);
-	g_object_get (link, "active", &active, NULL);
-	g_object_set (link, "active", !active, NULL);
+	gboolean active;
+
+	active = sbu_device_impl_get_link_active (self->device,
+						  SBU_NODE_KIND_SOLAR,
+						  SBU_NODE_KIND_BATTERY);
+	sbu_device_impl_set_link_active (self->device,
+					 SBU_NODE_KIND_SOLAR,
+					 SBU_NODE_KIND_BATTERY,
+					 !active);
 	return TRUE;
 }
 
@@ -122,20 +119,25 @@ gboolean
 sbu_plugin_refresh (SbuPlugin *plugin, GCancellable *cancellable, GError **error)
 {
 	SbuPluginData *self = sbu_plugin_get_data (plugin);
-	SbuNodeImpl *node = NULL;
-	gdouble val;
+	gdouble tmp;
 
 	/* make the panel more volt-y */
-	node = sbu_device_impl_get_node (self->device, SBU_NODE_KIND_BATTERY);
-	g_assert (node != NULL);
-	g_object_get (node, "voltage", &val, NULL);
-	g_object_set (node, "voltage", val + 10, NULL);
+	tmp = sbu_device_impl_get_node_value (self->device,
+					      SBU_NODE_KIND_BATTERY,
+					      SBU_DEVICE_PROPERTY_VOLTAGE);
+	sbu_device_impl_set_node_value (self->device,
+					SBU_NODE_KIND_BATTERY,
+					SBU_DEVICE_PROPERTY_VOLTAGE,
+					tmp + 10.f);
 
 	/* make the utlity more powerful */
-	node = sbu_device_impl_get_node (self->device, SBU_NODE_KIND_UTILITY);
-	g_assert (node != NULL);
-	g_object_get (node, "power", &val, NULL);
-	g_object_set (node, "power", val + 100, NULL);
+	tmp = sbu_device_impl_get_node_value (self->device,
+					      SBU_NODE_KIND_UTILITY,
+					      SBU_DEVICE_PROPERTY_POWER);
+	sbu_device_impl_set_node_value (self->device,
+					SBU_NODE_KIND_UTILITY,
+					SBU_DEVICE_PROPERTY_POWER,
+					tmp + 100.f);
 
 	/* save raw value */
 	sbu_plugin_update_metadata (plugin, self->device, "TestKey", 123456);
