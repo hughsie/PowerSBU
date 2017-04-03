@@ -17,6 +17,25 @@ shared_module('sbu_plugin_msx',
   dependencies : [gusb, libm]
 )
 
+executable(
+  'msx-util',
+  sources : [
+    'msx-common.c',
+    'msx-context.c',
+    'msx-device.c',
+    'msx-util.c',
+  ],
+  include_directories : [
+    include_directories('../..'),
+  ],
+  dependencies : [
+    gio,
+    gusb,
+    libm,
+  ],
+  c_args : cargs,
+)
+
 if get_option('enable-tests')
   e = executable(
     'msx-self-test',
