@@ -279,6 +279,58 @@ sbu_device_impl_get_property (GObject *object,
 }
 
 static void
+sbu_device_impl_set_object_manager (SbuDeviceImpl *self,
+				    GDBusObjectManagerServer *object_manager)
+{
+	/* no ref */
+	self->object_manager = object_manager;
+
+	/* set for all links and nodes */
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNode *node = g_ptr_array_index (self->nodes, i);
+		g_object_set (node,
+			      "object-manager", self->object_manager,
+			      NULL);
+	}
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuLink *link = g_ptr_array_index (self->links, i);
+		g_object_set (link,
+			      "object-manager", self->object_manager,
+			      NULL);
+	}
+}
+
+static void
+sbu_device_impl_set_object_path (SbuDeviceImpl *self,
+				 const gchar *object_path)
+{
+	self->object_path = g_strdup (object_path);
+
+	/* set for all nodes and links */
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNodeKind kind;
+		SbuNode *node = g_ptr_array_index (self->nodes, i);
+		g_autofree gchar *node_path = NULL;
+		g_object_get (node, "kind", &kind, NULL);
+		node_path = g_strdup_printf ("%s/node_%s",
+					     object_path,
+					     sbu_node_kind_to_string (kind));
+		g_object_set (node, "object-path", node_path, NULL);
+	}
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuNodeKind src, dst;
+		SbuLink *link = g_ptr_array_index (self->links, i);
+		g_autofree gchar *link_path = NULL;
+		g_object_get (link, "src", &src, "dst", &dst, NULL);
+		link_path = g_strdup_printf ("%s/link_%s_%s",
+					     object_path,
+					     sbu_node_kind_to_string (src),
+					     sbu_node_kind_to_string (dst));
+		g_object_set (link, "object-path", link_path, NULL);
+	}
+}
+
+static void
 sbu_device_impl_set_property (GObject *object,
 			      guint prop_id,
 			      const GValue *value,
@@ -289,40 +341,11 @@ sbu_device_impl_set_property (GObject *object,
 	switch (prop_id) {
 	case PROP_OBJECT_MANAGER:
 		g_assert (self->object_manager == NULL);
-		self->object_manager = g_value_get_object (value);
-
-		/* set for all links and nodes */
-		for (guint i = 0; i < self->nodes->len; i++) {
-			SbuNode *node = g_ptr_array_index (self->nodes, i);
-			g_object_set (node,
-				      "object-manager", self->object_manager,
-				      NULL);
-		}
-		for (guint i = 0; i < self->links->len; i++) {
-			SbuLink *link = g_ptr_array_index (self->links, i);
-			g_object_set (link,
-				      "object-manager", self->object_manager,
-				      NULL);
-		}
+		sbu_device_impl_set_object_manager (self, g_value_get_object (value));
 		break;
 	case PROP_OBJECT_PATH:
 		g_assert (self->object_path == NULL);
-		self->object_path = g_value_dup_string (value);
-
-		/* set for all nodes and links */
-		for (guint i = 0; i < self->nodes->len; i++) {
-			SbuNode *node = g_ptr_array_index (self->nodes, i);
-			g_autofree gchar *object_path = NULL;
-			object_path = g_strdup_printf ("%s/node_%u", self->object_path, i);
-			g_object_set (node, "object-path", object_path, NULL);
-		}
-		for (guint i = 0; i < self->links->len; i++) {
-			SbuLink *link = g_ptr_array_index (self->links, i);
-			g_autofree gchar *object_path = NULL;
-			object_path = g_strdup_printf ("%s/link_%u", self->object_path, i);
-			g_object_set (link, "object-path", object_path, NULL);
-		}
-
+		sbu_device_impl_set_object_path (self, g_value_get_string (value));
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
