@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <locale.h>
+#include <math.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <appstream-glib.h>
@@ -793,6 +794,116 @@ sbu_gui_listbox_details_sort_cb (GtkListBoxRow *row1,
 			  gtk_label_get_text (GTK_LABEL (labels2->data)));
 }
 
+static gboolean
+sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuGui *self)
+{
+	GdkRectangle rect;
+	GtkAllocation widget_sz;
+	GtkPositionType position = GTK_POS_LEFT;
+	GtkWidget *grid;
+	GtkWidget *popover;
+	SbuNode *n = NULL;
+	gdouble fract_x;
+	gdouble fract_y;
+	struct {
+		SbuNodeKind	 node_kind;
+		GtkPositionType	 position;
+		gdouble		 center_x;
+		gdouble		 center_y;
+		gdouble		 size;
+	} map[] = {
+		{ SBU_NODE_KIND_BATTERY,	GTK_POS_TOP,	0.289f,	0.496f,	0.13f },
+		{ SBU_NODE_KIND_UNKNOWN,	GTK_POS_LEFT,	0.f,	0.f,	0.f }
+	};
+	struct {
+		const gchar *prop;
+		const gchar *suffix;
+		const gchar *title;
+	} node_props[] = {
+		{ "power",		"W",	_("Power:") },
+		{ "power-max",		"W",	_("Power (Max):") },
+		{ "voltage",		"V",	_("Voltage:") },
+		{ "voltage-max",	"V",	_("Voltage (Max):") },
+		{ "current",		"A",	_("Current:") },
+		{ "current-max",	"A",	_("Current (Max):") },
+		{ "frequency",		"Hz",	_("Frequency:") },
+		{ NULL,		NULL,	NULL }
+	};
+
+	/* not a left button click */
+	if (event->type != GDK_BUTTON_PRESS)
+		return FALSE;
+	if (event->button != 1)
+		return FALSE;
+
+	/* work out in terms of fractional widget position */
+	gtk_widget_get_allocation (widget, &widget_sz);
+	fract_x = event->x / (gdouble) widget_sz.width;
+	fract_y = event->y / (gdouble) widget_sz.height;
+	g_debug ("got click @%f x %f", fract_x, fract_y);
+
+	for (guint i = 0; map[i].node_kind != SBU_NODE_KIND_UNKNOWN; i++) {
+		if (fract_x > map[i].center_x - (map[i].size / 2) &&
+		    fract_x < map[i].center_x + (map[i].size / 2) &&
+		    fract_y > map[i].center_y - (map[i].size / 2) &&
+		    fract_y < map[i].center_y + (map[i].size / 2)) {
+			g_debug ("got click for %s",
+				 sbu_node_kind_to_string (map[i].node_kind));
+			n = sbu_gui_get_node (self, map[i].node_kind);
+			if (n == NULL)
+				break;
+			rect.x = map[i].center_x * widget_sz.width;
+			rect.y = map[i].center_y * widget_sz.height;
+			position = map[i].position;
+			if (position == GTK_POS_TOP)
+				rect.y -= (map[i].size / 2) * widget_sz.height;
+		}
+	}
+
+	/* nothing to show */
+	if (n == NULL) {
+		g_debug ("no node to show");
+		return FALSE;
+	}
+
+	/* show popover */
+	popover = gtk_popover_new (widget);
+	gtk_popover_set_pointing_to (GTK_POPOVER (popover), &rect);
+	gtk_popover_set_position (GTK_POPOVER (popover), position);
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
+	gtk_widget_set_margin_start (grid, 12);
+	gtk_widget_set_margin_end (grid, 12);
+	gtk_widget_set_margin_top (grid, 12);
+	gtk_widget_set_margin_bottom (grid, 12);
+	for (guint i = 0; node_props[i].prop != NULL; i++) {
+		GtkWidget *title;
+		GtkWidget *value;
+		gdouble val;
+		g_autofree gchar *str = NULL;
+
+		g_object_get (n, node_props[i].prop, &val, NULL);
+		if (fabs (val) < 0.01f)
+			continue;
+
+		/* add widgets to grid */
+		str = sbu_format_for_display (val, node_props[i].suffix);
+		title = gtk_label_new (node_props[i].title);
+		gtk_label_set_xalign (GTK_LABEL (title), 1.0);
+		gtk_grid_attach (GTK_GRID (grid), title,
+				 0, i, 1, 1);
+		value = gtk_label_new (str);
+		gtk_label_set_xalign (GTK_LABEL (value), 0.0);
+		gtk_grid_attach (GTK_GRID (grid), value,
+				 1, i, 1, 1);
+	}
+	gtk_widget_show_all (grid);
+	gtk_container_add (GTK_CONTAINER (popover), grid);
+	gtk_popover_popup (GTK_POPOVER (popover));
+	return FALSE;
+}
+
 static void
 sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 {
@@ -875,6 +986,12 @@ sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 	g_signal_connect (widget, "changed",
 			  G_CALLBACK (sbu_gui_history_interval_changed_cb), self);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (widget), 1);
+
+
+	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "eventbox_overview"));
+	gtk_widget_add_events (widget, GDK_BUTTON_PRESS_MASK);
+	g_signal_connect (widget, "button-press-event",
+			  G_CALLBACK (sbu_gui_overview_button_press_cb), self);
 
 	/* populate pages */
 	sbu_gui_refresh_details (self);
