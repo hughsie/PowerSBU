@@ -162,7 +162,7 @@ sbu_manager_impl_plugins_remove_device_cb (SbuPlugin *plugin,
 					   SbuManagerImpl *self)
 {
 	g_debug ("removing device %s", sbu_device_impl_get_object_path (device));
-	//sbu_device_impl_unexport (device);
+	sbu_device_impl_unexport (device);
 	g_ptr_array_remove (self->devices, device);
 	if (self->devices->len == 0)
 		sbu_manager_impl_poll_stop (self);

@@ -199,6 +199,23 @@ sbu_device_impl_get_object_path (SbuDeviceImpl *self)
 }
 
 void
+sbu_device_impl_unexport (SbuDeviceImpl *self)
+{
+	for (guint i = 0; i < self->nodes->len; i++) {
+		SbuNodeImpl *node = g_ptr_array_index (self->nodes, i);
+		const gchar *path = sbu_node_impl_get_object_path (node);
+		g_dbus_object_manager_server_unexport (self->object_manager, path);
+	}
+	for (guint i = 0; i < self->links->len; i++) {
+		SbuLinkImpl *link = g_ptr_array_index (self->links, i);
+		const gchar *path = sbu_link_impl_get_object_path (link);
+		g_dbus_object_manager_server_unexport (self->object_manager, path);
+	}
+	g_dbus_object_manager_server_unexport (self->object_manager,
+					       self->object_path);
+}
+
+void
 sbu_device_impl_export (SbuDeviceImpl *self)
 {
 	g_autoptr(SbuObjectSkeleton) device_object = NULL;

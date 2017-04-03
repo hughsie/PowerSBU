@@ -43,6 +43,8 @@ GType		 sbu_device_impl_get_type		(void);
 SbuDeviceImpl	*sbu_device_impl_new			(void);
 const gchar	*sbu_device_impl_get_object_path	(SbuDeviceImpl	*self);
 void		 sbu_device_impl_export			(SbuDeviceImpl	*self);
+void		 sbu_device_impl_unexport		(SbuDeviceImpl	*self);
+
 void		 sbu_device_impl_add_node		(SbuDeviceImpl	*self,
 							 SbuNodeImpl	*node);
 SbuNodeImpl	*sbu_device_impl_get_node		(SbuDeviceImpl	*self,
