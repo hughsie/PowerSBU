@@ -11,6 +11,7 @@ sbu_dbus_src = gnome.gdbus_codegen(
   'generated-gdbus',
   'com.hughski.PowerSBU.xml',
   interface_prefix : 'com.hughski.PowerSBU.',
+  object_manager: true,
   namespace : 'Sbu')
 
 executable(
