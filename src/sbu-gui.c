@@ -812,20 +812,23 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 		gdouble		 center_y;
 		gdouble		 size;
 	} map[] = {
-		{ SBU_NODE_KIND_BATTERY,	GTK_POS_TOP,	0.289f,	0.496f,	0.13f },
+		{ SBU_NODE_KIND_BATTERY,	GTK_POS_TOP,	0.283f,	0.504f,	0.166 },
+		{ SBU_NODE_KIND_SOLAR,		GTK_POS_BOTTOM,	0.129f,	0.197f,	0.166 },
+		{ SBU_NODE_KIND_UTILITY,	GTK_POS_TOP,	0.130f,	0.810f,	0.166 },
+		{ SBU_NODE_KIND_LOAD,		GTK_POS_BOTTOM,	0.795f,	0.413f,	0.328 },
 		{ SBU_NODE_KIND_UNKNOWN,	GTK_POS_LEFT,	0.f,	0.f,	0.f }
 	};
 	struct {
 		SbuDeviceProperty	 prop;
 		const gchar		*title;
 	} node_props[] = {
-		{ SBU_DEVICE_PROPERTY_POWER,		_("Power:") },
-		{ SBU_DEVICE_PROPERTY_POWER_MAX,	_("Max Power:") },
-		{ SBU_DEVICE_PROPERTY_VOLTAGE,		_("Voltage:") },
-		{ SBU_DEVICE_PROPERTY_VOLTAGE_MAX,	_("Max Voltage:") },
-		{ SBU_DEVICE_PROPERTY_CURRENT,		_("Current:") },
-		{ SBU_DEVICE_PROPERTY_CURRENT_MAX,	_("Max Current:") },
-		{ SBU_DEVICE_PROPERTY_FREQUENCY,	_("Frequency:") },
+		{ SBU_DEVICE_PROPERTY_POWER,		_("Power") },
+		{ SBU_DEVICE_PROPERTY_POWER_MAX,	_("Max Power") },
+		{ SBU_DEVICE_PROPERTY_VOLTAGE,		_("Voltage") },
+		{ SBU_DEVICE_PROPERTY_VOLTAGE_MAX,	_("Max Voltage") },
+		{ SBU_DEVICE_PROPERTY_CURRENT,		_("Current") },
+		{ SBU_DEVICE_PROPERTY_CURRENT_MAX,	_("Max Current") },
+		{ SBU_DEVICE_PROPERTY_FREQUENCY,	_("Frequency") },
 		{ SBU_DEVICE_PROPERTY_UNKNOWN,		NULL }
 	};
 
@@ -856,6 +859,8 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 			position = map[i].position;
 			if (position == GTK_POS_TOP)
 				rect.y -= (map[i].size / 2) * widget_sz.height;
+			else if (position == GTK_POS_BOTTOM)
+				rect.y += (map[i].size / 2) * widget_sz.height;
 		}
 	}
 
@@ -872,13 +877,14 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 	grid = gtk_grid_new ();
 	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
 	gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
-	gtk_widget_set_margin_start (grid, 12);
-	gtk_widget_set_margin_end (grid, 12);
-	gtk_widget_set_margin_top (grid, 12);
-	gtk_widget_set_margin_bottom (grid, 12);
+	gtk_widget_set_margin_start (grid, 16);
+	gtk_widget_set_margin_end (grid, 16);
+	gtk_widget_set_margin_top (grid, 16);
+	gtk_widget_set_margin_bottom (grid, 16);
 	for (guint i = 0; node_props[i].prop != SBU_DEVICE_PROPERTY_UNKNOWN; i++) {
 		GtkWidget *title;
 		GtkWidget *value;
+		GtkStyleContext *style_context;
 		const gchar *key;
 		gdouble val;
 		g_autofree gchar *str = NULL;
@@ -892,6 +898,9 @@ sbu_gui_overview_button_press_cb (GtkWidget *widget, GdkEventButton *event, SbuG
 		/* add widgets to grid */
 		str = sbu_format_for_display (val, sbu_device_property_to_unit (node_props[i].prop));
 		title = gtk_label_new (node_props[i].title);
+		style_context = gtk_widget_get_style_context (title);
+		gtk_style_context_add_class (style_context, GTK_STYLE_CLASS_DIM_LABEL);
+
 		gtk_label_set_xalign (GTK_LABEL (title), 1.0);
 		gtk_grid_attach (GTK_GRID (grid), title,
 				 0, i, 1, 1);
