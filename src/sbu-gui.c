@@ -214,7 +214,9 @@ mxs_gui_get_graph_data (SbuGui *self, const gchar *key, guint32 color, GError **
 		SbuDatabaseItem *item = g_ptr_array_index (results, i);
 		EggGraphPoint *point = egg_graph_point_new ();
 		point->x = item->ts - now;
-		point->y = (gdouble) item->val / 1000.f;
+		point->y = (gdouble) item->val;
+		if (fabs (point->y) > 1.1f)
+			point->y /= 1000.f;
 		point->color = color;
 		g_ptr_array_add (data, point);
 	}
