@@ -38,6 +38,9 @@ gchar		*sbu_config_get_string		(SbuConfig	*self,
 gint		 sbu_config_get_integer		(SbuConfig	*self,
 						 const gchar	*key,
 						 GError		**error);
+gboolean	 sbu_config_get_boolean		(SbuConfig	*self,
+						 const gchar	*key,
+						 GError		**error);
 
 G_END_DECLS
 

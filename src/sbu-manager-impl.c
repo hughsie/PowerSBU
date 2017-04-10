@@ -434,6 +434,10 @@ sbu_manager_impl_setup (SbuManagerImpl *self, GError **error)
 	if (self->poll_interval == 0)
 		return FALSE;
 
+	/* enable test device */
+	if (sbu_config_get_boolean (config, "EnableDummyDevice", NULL))
+		g_setenv ("SBU_DUMMY_ENABLE", "", TRUE);
+
 	/* success */
 	return TRUE;
 }

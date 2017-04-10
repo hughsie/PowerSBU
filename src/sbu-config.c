@@ -68,6 +68,14 @@ sbu_config_get_integer (SbuConfig *self, const gchar *key, GError **error)
 	return g_key_file_get_integer (self->config, SBU_CONFIG_GROUP, key, error);
 }
 
+gboolean
+sbu_config_get_boolean (SbuConfig *self, const gchar *key, GError **error)
+{
+	if (!sbu_config_open (self, error))
+		return FALSE;
+	return g_key_file_get_boolean (self->config, SBU_CONFIG_GROUP, key, error);
+}
+
 static void
 sbu_config_finalize (GObject *object)
 {
