@@ -42,6 +42,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(SbuDeviceImpl, g_object_unref)
 GType		 sbu_device_impl_get_type		(void);
 SbuDeviceImpl	*sbu_device_impl_new			(void);
 const gchar	*sbu_device_impl_get_object_path	(SbuDeviceImpl	*self);
+GPtrArray	*sbu_device_impl_get_node_array		(SbuDeviceImpl	*self);
+GPtrArray	*sbu_device_impl_get_link_array		(SbuDeviceImpl	*self);
 void		 sbu_device_impl_export			(SbuDeviceImpl	*self);
 void		 sbu_device_impl_unexport		(SbuDeviceImpl	*self);
 

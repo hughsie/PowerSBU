@@ -54,6 +54,18 @@ static void sbu_device_iface_init (SbuDeviceIface *iface);
 G_DEFINE_TYPE_WITH_CODE (SbuDeviceImpl, sbu_device_impl, SBU_TYPE_DEVICE_SKELETON,
 			 G_IMPLEMENT_INTERFACE(SBU_TYPE_DEVICE, sbu_device_iface_init));
 
+GPtrArray *
+sbu_device_impl_get_node_array (SbuDeviceImpl *self)
+{
+	return self->nodes;
+}
+
+GPtrArray *
+sbu_device_impl_get_link_array (SbuDeviceImpl *self)
+{
+	return self->links;
+}
+
 SbuNodeImpl *
 sbu_device_impl_get_node (SbuDeviceImpl *self, SbuNodeKind kind)
 {
@@ -139,7 +151,7 @@ sbu_device_impl_set_link_active (SbuDeviceImpl *self,
 /* runs in thread dedicated to handling @invocation */
 static gboolean
 sbu_device_impl_get_nodes (SbuDevice *_device,
-			      GDBusMethodInvocation *invocation)
+			   GDBusMethodInvocation *invocation)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (_device);
 	GVariantBuilder builder;
@@ -161,7 +173,7 @@ sbu_device_impl_get_nodes (SbuDevice *_device,
 /* runs in thread dedicated to handling @invocation */
 static gboolean
 sbu_device_impl_get_links (SbuDevice *_device,
-			      GDBusMethodInvocation *invocation)
+			   GDBusMethodInvocation *invocation)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (_device);
 	GVariantBuilder builder;

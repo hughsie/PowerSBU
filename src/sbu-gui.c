@@ -246,11 +246,17 @@ sbu_gui_history_setup_lines (SbuGui *self, PowerSBUGraphLine *lines)
 	}
 }
 
+#define CC_BATTERY	0xcc0000
+#define CC_SOLAR	0xcccc00
+#define CC_UTILITY	0x00cc00
+#define CC_LOAD		0x4444cc
+
 static void
 sbu_gui_history_setup_battery_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
 		{ "BatteryVoltage",		0xff0000,	"BatteryVoltage" },
+		{ "/0/node_battery:voltage",	CC_BATTERY,	_("Battery Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -271,6 +277,8 @@ sbu_gui_history_setup_mains_voltage (SbuGui *self)
 	PowerSBUGraphLine lines[] = {
 		{ "GridVoltage",		0xff0000,	"GridVoltage" },
 		{ "AcOutputVoltage",		0x00ff00,	"AcOutputVoltage" },
+		{ "/0/node_utility:voltage",	CC_UTILITY,	_("Utility Voltage") },
+		{ "/0/node_load:voltage",	CC_LOAD,	_("Load Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -290,6 +298,10 @@ sbu_gui_history_setup_power_usage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
 		{ "AcOutputPower",		0xff0000,	"AcOutputPower" },
+		{ "/0/node_solar:power",	CC_SOLAR,	_("Solar Power") },
+		{ "/0/node_battery:power",	CC_BATTERY,	_("Battery Power") },
+		{ "/0/node_utility:power",	CC_UTILITY,	_("Utility Power") },
+		{ "/0/node_load:power",		CC_LOAD,	_("Load Power") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -309,6 +321,10 @@ sbu_gui_history_setup_current (SbuGui *self)
 		{ "PvInputCurrentForBattery",	0xff0000,	"PvInputCurrentForBattery" },
 		{ "BatteryCurrent",		0x00ff00,	"BatteryCurrent" },
 		{ "BatteryDischargeCurrent",	0x0000ff,	"BatteryDischargeCurrent" },
+		{ "/0/node_solar:current",	CC_SOLAR,	_("Solar Current") },
+		{ "/0/node_battery:current",	CC_BATTERY,	_("Battery Current") },
+		{ "/0/node_utility:current",	CC_UTILITY,	_("Utility Current") },
+		{ "/0/node_load:current",	CC_LOAD,	_("Load Current") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -329,6 +345,7 @@ sbu_gui_history_setup_panel_voltage (SbuGui *self)
 	PowerSBUGraphLine lines[] = {
 		{ "PvInputVoltage",		0xff0000,	"PvInputVoltage" },
 		{ "BatteryVoltageFromScc",	0x00ff00,	"BatteryVoltageFromScc" },
+		{ "/0/node_solar:voltage",	CC_SOLAR,	_("Solar Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -347,10 +364,15 @@ static void
 sbu_gui_history_setup_status (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "ChargingOn",			0xff0000,	"ChargingOn" },
-		{ "ChargingOnSolar",		0x00ff00,	"ChargingOnSolar" },
-		{ "ChargingOnAC",		0x0000ff,	"ChargingOnAC" },
-		{ NULL,				0x000000,	NULL },
+		{ "ChargingOn",				0xff0000,	"ChargingOn" },
+		{ "ChargingOnSolar",			0x00ff00,	"ChargingOnSolar" },
+		{ "ChargingOnAC",			0x0000ff,	"ChargingOnAC" },
+		{ "/0/link_solar_battery:active",	CC_SOLAR,	_("Solar ⇢ Battery") },
+		{ "/0/link_battery_load:active",	CC_BATTERY,	_("Battery ⇢ Load") },
+		{ "/0/link_utility_battery:active",	0xcc00cc,	_("Utility ⇢ Battery") },
+		{ "/0/link_utility_load:active",	CC_UTILITY,	_("Utility ⇢ Load") },
+		{ "/0/link_solar_load:active",		CC_LOAD,	_("Solar ⇢ Load") },
+		{ NULL,					0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -359,7 +381,7 @@ sbu_gui_history_setup_status (SbuGui *self)
 		      "type-y", EGG_GRAPH_WIDGET_KIND_FACTOR,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,
-		      "stop-y", (gdouble) 0.01f,
+		      "stop-y", (gdouble) 1.f,
 		      NULL);
 	sbu_gui_history_setup_lines (self, lines);
 }

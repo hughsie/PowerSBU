@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include <glib.h>
+#include <string.h>
 
 #include "sbu-common.h"
 #include "sbu-config.h"
@@ -169,10 +170,70 @@ sbu_manager_impl_plugins_remove_device_cb (SbuPlugin *plugin,
 }
 
 static void
+sbu_manager_impl_save_history (SbuManagerImpl *self, const gchar *object_path, const gchar *propname, GObject *obj)
+{
+	gint value = -1;
+
+	/* boolean */
+	if (g_strcmp0 (propname, "link") == 0) {
+		gboolean tmp;
+		g_object_get (obj, propname, &tmp, NULL);
+		value = (guint) tmp;
+
+	/* double */
+	} else if (g_strcmp0 (propname, "power") == 0 ||
+		   g_strcmp0 (propname, "current") == 0 ||
+		   g_strcmp0 (propname, "voltage") == 0 ||
+		   g_strcmp0 (propname, "frequency") == 0) {
+		gdouble tmp;
+		g_object_get (obj, propname, &tmp, NULL);
+		value = tmp * 1000.f;
+	}
+
+	/* save to database */
+	if (value != -1) {
+		g_autofree gchar *key = NULL;
+		g_autoptr(GError) error = NULL;
+		key = g_strdup_printf ("%s:%s",
+				       object_path + strlen (SBU_DBUS_PATH_DEVICE),
+				       propname);
+		if (!sbu_database_save_value (self->database, key, value, &error))
+			g_warning ("%s", error->message);
+	}
+}
+
+static void
+sbu_manager_impl_node_notify_cb (SbuNodeImpl *n, GParamSpec *pspec, gpointer user_data)
+{
+	SbuManagerImpl *self = SBU_MANAGER_IMPL (user_data);
+	g_debug ("changed %s:%s",
+		 sbu_node_impl_get_object_path (n),
+		 g_param_spec_get_name (pspec));
+	sbu_manager_impl_save_history (self,
+				       sbu_node_impl_get_object_path (n),
+				       g_param_spec_get_name (pspec),
+				       G_OBJECT (n));
+}
+
+static void
+sbu_manager_impl_link_notify_cb (SbuLinkImpl *l, GParamSpec *pspec, gpointer user_data)
+{
+	SbuManagerImpl *self = SBU_MANAGER_IMPL (user_data);
+	g_debug ("changed %s:%s",
+		 sbu_link_impl_get_object_path (l),
+		 g_param_spec_get_name (pspec));
+	sbu_manager_impl_save_history (self,
+				       sbu_link_impl_get_object_path (l),
+				       g_param_spec_get_name (pspec),
+				       G_OBJECT (l));
+}
+
+static void
 sbu_manager_impl_plugins_add_device_cb (SbuPlugin *plugin,
 					SbuDeviceImpl *device,
 					SbuManagerImpl *self)
 {
+	GPtrArray *array;
 	g_autofree gchar *object_path = NULL;
 
 	/* just use the array position as the ID */
@@ -184,6 +245,22 @@ sbu_manager_impl_plugins_add_device_cb (SbuPlugin *plugin,
 		      "object-manager", self->object_manager,
 		      "object-path", object_path,
 		      NULL);
+
+	/* watch all links and nodes */
+	array = sbu_device_impl_get_link_array (device);
+	for (guint i = 0; i < array->len; i++) {
+		SbuLink *link = g_ptr_array_index (array, i);
+		g_signal_connect (link, "notify",
+				  G_CALLBACK (sbu_manager_impl_link_notify_cb),
+				  self);
+	}
+	array = sbu_device_impl_get_node_array (device);
+	for (guint i = 0; i < array->len; i++) {
+		SbuNode *node = g_ptr_array_index (array, i);
+		g_signal_connect (node, "notify",
+				  G_CALLBACK (sbu_manager_impl_node_notify_cb),
+				  self);
+	}
 
 	/* export and save device */
 	sbu_device_impl_export (device);
