@@ -285,10 +285,6 @@ msx_device_emit_changed (MsxDevice *self, MsxDeviceKey key, gint val)
 		g_hash_table_insert (self->hash, hash_key, val_ptr);
 		g_debug ("cache add new %s=%i",
 			 sbu_device_key_to_string (key), val);
-	} else if (*val_ptr == val) {
-		g_debug ("cache ignore duplicate %s=%i",
-			 sbu_device_key_to_string (key), val);
-		return;
 	}
 
 	/* emit and THEN save new value so we can get the old value */
