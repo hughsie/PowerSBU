@@ -568,12 +568,14 @@ sbu_gui_refresh_overview (SbuGui *self)
 	}
 
 	/* load XML */
-	sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SERIAL_NUMBER,
-					sbu_device_get_serial_number (self->device));
-	sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_FIRMWARE_VERSION,
-					sbu_device_get_firmware_version (self->device));
-	sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_DEVICE_MODEL,
-					sbu_device_get_description (self->device));
+	if (self->device != NULL) {
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_SERIAL_NUMBER,
+						sbu_device_get_serial_number (self->device));
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_FIRMWARE_VERSION,
+						sbu_device_get_firmware_version (self->device));
+		sbu_xml_modifier_replace_cdata (xml_mod, SBU_SVG_ID_TEXT_DEVICE_MODEL,
+						sbu_device_get_description (self->device));
+	}
 
 	/* not supported yet */
 	sbu_xml_modifier_replace_attr (xml_mod, SBU_SVG_ID_TEXT_SOLAR_TO_UTILITY,
@@ -777,7 +779,6 @@ sbu_gui_update_default_device (SbuGui *self, GError **error)
 	}
 
 	/* initial load */
-	sbu_gui_refresh_overview (self);
 	return TRUE;
 }
 
@@ -988,13 +989,6 @@ sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 		return;
 	}
 	g_debug ("daemon version: %s", sbu_manager_get_version (self->manager));
-	if (!sbu_gui_update_default_device (self, &error)) {
-		g_warning ("failed to get device: %s", error->message);
-		return;
-	}
-
-	/* set up overview page */
-	sbu_gui_refresh_overview (self);
 
 	/* set up history page */
 	self->graph_widget = egg_graph_widget_new ();
@@ -1025,6 +1019,15 @@ sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 	gtk_widget_add_events (widget, GDK_BUTTON_PRESS_MASK);
 	g_signal_connect (widget, "button-press-event",
 			  G_CALLBACK (sbu_gui_overview_button_press_cb), self);
+
+	/* get default device */
+	if (!sbu_gui_update_default_device (self, &error)) {
+		g_warning ("failed to get device: %s", error->message);
+		/* FIXME: show custom page */
+	}
+
+	/* set up overview page */
+	sbu_gui_refresh_overview (self);
 
 	/* populate pages */
 	sbu_gui_refresh_details (self);
