@@ -128,7 +128,7 @@ sbu_plugin_refresh (SbuPlugin *plugin, GCancellable *cancellable, GError **error
 	sbu_device_impl_set_node_value (self->device,
 					SBU_NODE_KIND_BATTERY,
 					SBU_DEVICE_PROPERTY_VOLTAGE,
-					tmp + 10.f);
+					tmp + g_random_double_range (-.2f, .2f));
 
 	/* make the utlity more powerful */
 	tmp = sbu_device_impl_get_node_value (self->device,
@@ -137,7 +137,7 @@ sbu_plugin_refresh (SbuPlugin *plugin, GCancellable *cancellable, GError **error
 	sbu_device_impl_set_node_value (self->device,
 					SBU_NODE_KIND_UTILITY,
 					SBU_DEVICE_PROPERTY_POWER,
-					tmp + 100.f);
+					tmp + g_random_double_range (-10.f, 10.f));
 
 	/* save raw value */
 	sbu_plugin_update_metadata (plugin, self->device, "TestKey", 123456);
