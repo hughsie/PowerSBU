@@ -38,6 +38,7 @@ struct _SbuDatabase
 };
 
 #define SBU_DATABASE_VALUE_DELTA	0.5f
+#define SBU_DATABASE_SAVE_INTERVAL	600
 
 G_DEFINE_TYPE (SbuDatabase, sbu_database, G_TYPE_OBJECT)
 
@@ -270,18 +271,23 @@ sbu_database_save_value (SbuDatabase *self, const gchar *key, gint val, GError *
 	/* get existing cached value */
 	item = g_hash_table_lookup (self->hash, key);
 	if (item != NULL) {
-		gdouble tmp;
-		if (item->val == val) {
-			g_debug ("same value for %s=%i, ignoring", key, val);
-			return TRUE;
+		guint64 ts_now = g_get_real_time () / G_USEC_PER_SEC;
+		if (ts_now - item->ts > SBU_DATABASE_SAVE_INTERVAL) {
+			g_debug ("replacing existing old value %s=%i", key, val);
+		} else {
+			gdouble tmp;
+			if (item->val == val) {
+				g_debug ("same value for %s=%i, ignoring", key, val);
+				return TRUE;
+			}
+			tmp = sbu_database_compare_values (val, item->val);
+			if (tmp < SBU_DATABASE_VALUE_DELTA) {
+				g_debug ("within %.2f%% of value for %s=%i->%i, ignoring",
+					 tmp, key, item->val, val);
+				return TRUE;
+			}
+			g_debug ("replacing existing %s=%i", key, val);
 		}
-		tmp = sbu_database_compare_values (val, item->val);
-		if (tmp < SBU_DATABASE_VALUE_DELTA) {
-			g_debug ("within %.2f%% of value for %s=%i->%i, ignoring",
-				 tmp, key, item->val, val);
-			return TRUE;
-		}
-		g_debug ("replacing existing %s=%i", key, val);
 	} else {
 		g_debug ("no stored value, saving %s=%i", key, val);
 	}
