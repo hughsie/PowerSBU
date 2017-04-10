@@ -108,6 +108,20 @@ msx_device_update_link_solar_load (SbuDeviceImpl *device, MsxDevice *msx_device)
 }
 
 static void
+msx_device_update_node_solar_voltage (SbuDeviceImpl *device, MsxDevice *msx_device)
+{
+	/* if the PWM voltage is nonzero, get the voltage as
+	 * applied to the battery */
+	gint v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_VOLTAGE);
+	if (v > 0)
+		v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC);
+	sbu_device_impl_set_node_value (device,
+					SBU_NODE_KIND_SOLAR,
+					SBU_DEVICE_PROPERTY_VOLTAGE,
+					msx_val_to_double (v));
+}
+
+static void
 msx_device_update_node_utility_power (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
 	gboolean active;
@@ -275,10 +289,7 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		msx_device_update_node_solar_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC:
-		sbu_device_impl_set_node_value (device,
-						SBU_NODE_KIND_SOLAR,
-						SBU_DEVICE_PROPERTY_VOLTAGE,
-						msx_val_to_double (value));
+		msx_device_update_node_solar_voltage (device, msx_device);
 		msx_device_update_node_solar_power (device, msx_device);
 		msx_device_update_link_solar_load (device, msx_device);
 		break;
