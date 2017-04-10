@@ -138,12 +138,23 @@ msx_device_update_node_utility_power (SbuDeviceImpl *device, MsxDevice *msx_devi
 static void
 msx_device_update_link_utility_load (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
-	gint a_bat = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
-	gint v_uti = msx_device_get_value (msx_device, MSX_DEVICE_KEY_GRID_VOLTAGE);
-	sbu_device_impl_set_link_active (device,
-					 SBU_NODE_KIND_UTILITY,
-					 SBU_NODE_KIND_LOAD,
-					 a_bat == 0 && v_uti > 0);
+	gboolean active;
+	active = sbu_device_impl_get_link_active (device,
+						  SBU_NODE_KIND_SOLAR,
+						  SBU_NODE_KIND_LOAD);
+	if (active) {
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_UTILITY,
+						 SBU_NODE_KIND_LOAD,
+						 FALSE);
+	} else {
+		gint a_bat = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT);
+		gint v_uti = msx_device_get_value (msx_device, MSX_DEVICE_KEY_GRID_VOLTAGE);
+		sbu_device_impl_set_link_active (device,
+						 SBU_NODE_KIND_UTILITY,
+						 SBU_NODE_KIND_LOAD,
+						 a_bat == 0 && v_uti > 0);
+	}
 	msx_device_update_node_utility_power (device, msx_device);
 }
 
