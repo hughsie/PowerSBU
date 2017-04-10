@@ -41,7 +41,7 @@ msx_val_to_double (gint value)
 static gdouble
 msx_vals_to_double (gint value1, gint value2)
 {
-	return msx_val_to_double (value1) * msx_val_to_double (value2);
+	return msx_val_to_double (value1) * msx_val_to_double (value2) / 1000.f;
 }
 
 static void
