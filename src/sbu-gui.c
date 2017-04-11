@@ -56,6 +56,7 @@ typedef struct {
 	GPtrArray	*links;
 	guint		 refresh_id;
 	gint64		 history_interval;
+	gint64		 history_filter;
 } SbuGui;
 
 static void
@@ -200,6 +201,7 @@ mxs_gui_get_graph_data (SbuGui *self, const gchar *key, guint32 color, GError **
 	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
 	g_autoptr(GPtrArray) data = NULL;
 	g_autoptr(GPtrArray) results = NULL;
+	g_autoptr(GPtrArray) results2 = NULL;
 
 	results = sbu_database_query (self->database,
 				      key,
@@ -209,9 +211,54 @@ mxs_gui_get_graph_data (SbuGui *self, const gchar *key, guint32 color, GError **
 				      error);
 	if (results == NULL)
 		return NULL;
+
+	/* limit the number of results */
+	if (self->history_filter == 0) {
+		results2 = g_ptr_array_ref (results);
+	} else {
+		gint ts_last_added = 0;
+		guint ave_cnt = 0;
+		gdouble ave_acc = 0;
+		gint64 interval = self->history_interval / (100 / self->history_filter);
+
+		results2 = g_ptr_array_new_with_free_func (g_free);
+		for (guint i = 0; i < results->len; i++) {
+			SbuDatabaseItem *item = g_ptr_array_index (results, i);
+
+			if (ts_last_added == 0)
+				ts_last_added = item->ts;
+
+			/* first and last points */
+			if (i == 0 || i == results->len - 1) {
+				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
+				item2->ts = item->ts;
+				item2->val = item->val;
+				g_ptr_array_add (results2, item2);
+				continue;
+			}
+
+			/* add to moving average */
+			ave_acc += item->val;
+			ave_cnt += 1;
+
+			/* more than the interval */
+			if (item->ts - ts_last_added > interval) {
+				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
+				item2->ts = item->ts;
+				item2->val = ave_acc / (gdouble) ave_cnt;
+				g_ptr_array_add (results2, item2);
+				ts_last_added = item->ts;
+
+				/* reset moving average */
+				ave_cnt = 0;
+				ave_acc = 0.f;
+			}
+		}
+	}
+
 	data = g_ptr_array_new_with_free_func ((GDestroyNotify) egg_graph_point_free);
-	for (guint i = 0; i < results->len; i++) {
-		SbuDatabaseItem *item = g_ptr_array_index (results, i);
+	for (guint i = 0; i < results2->len; i++) {
+		SbuDatabaseItem *item = g_ptr_array_index (results2, i);
 		EggGraphPoint *point = egg_graph_point_new ();
 		point->x = item->ts - now;
 		point->y = (gdouble) item->val;
@@ -232,6 +279,12 @@ typedef struct {
 static void
 sbu_gui_history_setup_lines (SbuGui *self, PowerSBUGraphLine *lines)
 {
+	EggGraphWidgetPlot plot = EGG_GRAPH_WIDGET_PLOT_BOTH;
+
+	/* no line when no filtering */
+	if (self->history_filter == 0)
+		plot = EGG_GRAPH_WIDGET_PLOT_POINTS;
+
 	for (guint i = 0; lines[i].key != NULL; i++) {
 		g_autoptr(GError) error = NULL;
 		g_autoptr(GPtrArray) data = NULL;
@@ -242,7 +295,7 @@ sbu_gui_history_setup_lines (SbuGui *self, PowerSBUGraphLine *lines)
 			return;
 		}
 		egg_graph_widget_data_add (EGG_GRAPH_WIDGET (self->graph_widget),
-					   EGG_GRAPH_WIDGET_PLOT_POINTS, data);
+					   plot, data);
 		egg_graph_widget_key_legend_add	(EGG_GRAPH_WIDGET (self->graph_widget),
 						 lines[i].color, lines[i].text);
 	}
@@ -827,6 +880,28 @@ sbu_gui_history_interval_changed_cb (GtkComboBox *combo_box, SbuGui *self)
 	sbu_gui_history_refresh_graph (self);
 }
 
+static void
+sbu_gui_history_filter_changed_cb (GtkComboBox *combo_box, SbuGui *self)
+{
+	switch (gtk_combo_box_get_active (combo_box)) {
+	case 0:
+		self->history_filter = 0;
+		break;
+	case 1:
+		self->history_filter = 1;
+		break;
+	case 2:
+		self->history_filter = 5;
+		break;
+	case 3:
+		self->history_filter = 10;
+		break;
+	default:
+		g_assert_not_reached ();
+	}
+	sbu_gui_history_refresh_graph (self);
+}
+
 static gint
 sbu_gui_listbox_details_sort_cb (GtkListBoxRow *row1,
 				 GtkListBoxRow *row2,
@@ -1032,11 +1107,15 @@ sbu_gui_startup_cb (GApplication *application, SbuGui *self)
 				    sbu_gui_listbox_details_sort_cb,
 				    self, NULL);
 
+	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "combobox_filter"));
+	g_signal_connect (widget, "changed",
+			  G_CALLBACK (sbu_gui_history_filter_changed_cb), self);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (widget), 1);
+
 	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "combobox_timespan"));
 	g_signal_connect (widget, "changed",
 			  G_CALLBACK (sbu_gui_history_interval_changed_cb), self);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (widget), 1);
-
 
 	widget = GTK_WIDGET (gtk_builder_get_object (self->builder, "eventbox_overview"));
 	gtk_widget_add_events (widget, GDK_BUTTON_PRESS_MASK);
