@@ -357,10 +357,17 @@ msx_device_changed_cb (MsxDevice *msx_device,
 	case MSX_DEVICE_KEY_LCD_BACKLIGHT:
 	case MSX_DEVICE_KEY_ALARM_PRIMARY_SOURCE_INTERRUPT:
 	case MSX_DEVICE_KEY_FAULT_CODE_RECORD:
-		g_debug ("key %s not handled", sbu_device_key_to_string (key));
+	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_OFFSET_FOR_FANS:
+	case MSX_DEVICE_KEY_EEPROM_VERSION:
+	case MSX_DEVICE_KEY_PV_CHARGING_POWER:
+	case MSX_DEVICE_KEY_CHARGING_TO_FLOATING_MODE:
+	case MSX_DEVICE_KEY_SWITCH_ON:
+		g_debug ("key %s=%i not handled",
+			 sbu_device_key_to_string (key), value);
 		break;
 	default:
-		g_warning ("key %s not handled", sbu_device_key_to_string (key));
+		g_warning ("key %s=%i not handled",
+			   sbu_device_key_to_string (key), value);
 		break;
 	}
 

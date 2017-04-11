@@ -247,5 +247,15 @@ sbu_device_key_to_string (MsxDeviceKey key)
 		return "AlarmPrimarySourceInterrupt";
 	if (key == MSX_DEVICE_KEY_FAULT_CODE_RECORD)
 		return "FaultCodeRecord";
+	if (key == MSX_DEVICE_KEY_BATTERY_VOLTAGE_OFFSET_FOR_FANS)
+		return "BatteryVoltageOffsetForFans";
+	if (key == MSX_DEVICE_KEY_EEPROM_VERSION)
+		return "EepromVersion";
+	if (key == MSX_DEVICE_KEY_PV_CHARGING_POWER)
+		return "PvChargingPower";
+	if (key == MSX_DEVICE_KEY_CHARGING_TO_FLOATING_MODE)
+		return "ChargingToFloatingMode";
+	if (key == MSX_DEVICE_KEY_SWITCH_ON)
+		return "SwitchOn";
 	return NULL;
 }

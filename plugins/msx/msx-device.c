@@ -581,6 +581,9 @@ msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 		{ 0x40,		MSX_DEVICE_KEY_PV_INPUT_VOLTAGE },
 		{ 0x46,		MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC },
 		{ 0x4c,		MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT },
+		{ 0x5b,		MSX_DEVICE_KEY_BATTERY_VOLTAGE_OFFSET_FOR_FANS },
+		{ 0x5e,		MSX_DEVICE_KEY_EEPROM_VERSION },
+		{ 0x61,		MSX_DEVICE_KEY_PV_CHARGING_POWER },
 		{ 0x6a,		MSX_DEVICE_KEY_UNKNOWN }
 	};
 	MsxDeviceBufferOffsets buffer_bits[] = {
@@ -592,6 +595,11 @@ msx_device_rescan_device_general_status (MsxDevice *self, GError **error)
 		{ 0x57,		MSX_DEVICE_KEY_CHARGING_ON },
 		{ 0x58,		MSX_DEVICE_KEY_CHARGING_ON_SOLAR },
 		{ 0x59,		MSX_DEVICE_KEY_CHARGING_ON_AC },
+		{ 0x6a,		MSX_DEVICE_KEY_UNKNOWN }
+	};
+	MsxDeviceBufferOffsets device_bits[] = {
+		{ 0x67,		MSX_DEVICE_KEY_CHARGING_TO_FLOATING_MODE },
+		{ 0x68,		MSX_DEVICE_KEY_SWITCH_ON },
 		{ 0x6a,		MSX_DEVICE_KEY_UNKNOWN }
 	};
 
