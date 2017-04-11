@@ -119,16 +119,21 @@ gboolean
 sbu_database_repair (SbuDatabase *self, GError **error)
 {
 	const gchar *statement;
+	const gchar *keys_delete[] = {
+		"MaximumPowerPercentage",
+		"AcOutputActivePower",
+		"BusVoltage",
+		NULL };
 
-	/* delete any negative values */
-	statement = "DELETE FROM log WHERE val < 0;";
-	if (!sbu_database_execute (self, statement, error))
-		return FALSE;
-
-	/* delete test keys */
-	statement = "DELETE FROM log WHERE key == 'TestKey';";
-	if (!sbu_database_execute (self, statement, error))
-		return FALSE;
+	/* delete ignored keys */
+	for (guint i = 0; keys_delete[i] != NULL; i++) {
+		g_autofree gchar *stmt = NULL;
+		stmt = g_strdup_printf ("DELETE FROM log "
+					"WHERE key == '%s';",
+					keys_delete[i]);
+		if (!sbu_database_execute (self, stmt, error))
+			return FALSE;
+	}
 
 	/* rename ported keys */
 	statement = "UPDATE log SET key = '/0/node_utility:voltage' WHERE key == 'GridVoltage';";
@@ -141,6 +146,24 @@ sbu_database_repair (SbuDatabase *self, GError **error)
 	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
 	statement = "UPDATE log SET key = '/0/node_battery:current' WHERE key == 'BatteryDischargeCurrent';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_solar:voltage' WHERE key == 'BatteryVoltageFromScc';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_solar:current' WHERE key == 'PvInputCurrentForBattery';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_utility:frequency' WHERE key == 'GridFrequency';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_load:frequency' WHERE key == 'AcOutputFrequency';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+
+	/* flip around the new key value */
+	statement = "UPDATE log SET key = '/0/node_battery:current', val = -val "
+		    "WHERE key == 'BatteryCurrent';";
 	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
 

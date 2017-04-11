@@ -298,7 +298,6 @@ static void
 sbu_gui_history_setup_power_usage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "AcOutputPower",		0xff0000,	"AcOutputPower" },
 		{ "/0/node_solar:power",	CC_SOLAR,	_("Solar Power") },
 		{ "/0/node_battery:power",	CC_BATTERY,	_("Battery Power") },
 		{ "/0/node_utility:power",	CC_UTILITY,	_("Utility Power") },
@@ -320,8 +319,6 @@ static void
 sbu_gui_history_setup_current (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "PvInputCurrentForBattery",	0xff0000,	"PvInputCurrentForBattery" },
-		{ "BatteryCurrent",		0x00ff00,	"BatteryCurrent" },
 		{ "/0/node_solar:current",	CC_SOLAR,	_("Solar Current") },
 		{ "/0/node_battery:current",	CC_BATTERY,	_("Battery Current") },
 		{ "/0/node_utility:current",	CC_UTILITY,	_("Utility Current") },
@@ -346,7 +343,6 @@ sbu_gui_history_setup_panel_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
 		{ "PvInputVoltage",		0xff0000,	"PvInputVoltage" },
-		{ "BatteryVoltageFromScc",	0x00ff00,	"BatteryVoltageFromScc" },
 		{ "/0/node_solar:voltage",	CC_SOLAR,	_("Solar Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};

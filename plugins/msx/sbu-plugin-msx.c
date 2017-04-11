@@ -364,16 +364,23 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		break;
 	}
 
-	/* save nearly every key until we have a stable database API */
+	/* save nearly every changed key until we have a stable API */
 	switch (key) {
+	case MSX_DEVICE_KEY_AC_OUTPUT_FREQUENCY:
 	case MSX_DEVICE_KEY_AC_OUTPUT_VOLTAGE:
-	case MSX_DEVICE_KEY_BATTERY_VOLTAGE:
-	case MSX_DEVICE_KEY_GRID_RATING_VOLTAGE:
+	case MSX_DEVICE_KEY_BATTERY_CURRENT:
 	case MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT:
+	case MSX_DEVICE_KEY_BATTERY_VOLTAGE:
+	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC:
+	case MSX_DEVICE_KEY_GRID_FREQUENCY:
+	case MSX_DEVICE_KEY_GRID_RATING_VOLTAGE:
+	case MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY:
 		break;
 	default:
-		sbu_plugin_update_metadata (plugin, device,
-					    sbu_device_key_to_string (key), value);
+		if (msx_device_get_value (msx_device, key) != value) {
+			sbu_plugin_update_metadata (plugin, device,
+						    sbu_device_key_to_string (key), value);
+		}
 		break;
 	}
 }
