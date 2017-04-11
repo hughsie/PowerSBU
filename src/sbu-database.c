@@ -124,7 +124,23 @@ sbu_database_repair (SbuDatabase *self, GError **error)
 	statement = "DELETE FROM log WHERE val < 0;";
 	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
+
+	/* delete test keys */
 	statement = "DELETE FROM log WHERE key == 'TestKey';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+
+	/* rename ported keys */
+	statement = "UPDATE log SET key = '/0/node_utility:voltage' WHERE key == 'GridVoltage';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_load:voltage' WHERE key == 'AcOutputVoltage';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_battery:voltage' WHERE key == 'BatteryVoltage';";
+	if (!sbu_database_execute (self, statement, error))
+		return FALSE;
+	statement = "UPDATE log SET key = '/0/node_battery:current' WHERE key == 'BatteryDischargeCurrent';";
 	if (!sbu_database_execute (self, statement, error))
 		return FALSE;
 

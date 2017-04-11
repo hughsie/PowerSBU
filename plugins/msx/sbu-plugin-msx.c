@@ -364,9 +364,18 @@ msx_device_changed_cb (MsxDevice *msx_device,
 		break;
 	}
 
-	/* save every key until we have a stable database API */
-	sbu_plugin_update_metadata (plugin, device,
-				    sbu_device_key_to_string (key), value);
+	/* save nearly every key until we have a stable database API */
+	switch (key) {
+	case MSX_DEVICE_KEY_AC_OUTPUT_VOLTAGE:
+	case MSX_DEVICE_KEY_BATTERY_VOLTAGE:
+	case MSX_DEVICE_KEY_GRID_RATING_VOLTAGE:
+	case MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT:
+		break;
+	default:
+		sbu_plugin_update_metadata (plugin, device,
+					    sbu_device_key_to_string (key), value);
+		break;
+	}
 }
 
 static const gchar *

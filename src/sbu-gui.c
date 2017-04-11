@@ -257,7 +257,6 @@ static void
 sbu_gui_history_setup_battery_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "BatteryVoltage",		0xff0000,	"BatteryVoltage" },
 		{ "/0/node_battery:voltage",	CC_BATTERY,	_("Battery Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
@@ -277,8 +276,6 @@ static void
 sbu_gui_history_setup_mains_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "GridVoltage",		0xff0000,	"GridVoltage" },
-		{ "AcOutputVoltage",		0x00ff00,	"AcOutputVoltage" },
 		{ "/0/node_utility:voltage",	CC_UTILITY,	_("Utility Voltage") },
 		{ "/0/node_load:voltage",	CC_LOAD,	_("Load Voltage") },
 		{ NULL,				0x000000,	NULL },
@@ -322,7 +319,6 @@ sbu_gui_history_setup_current (SbuGui *self)
 	PowerSBUGraphLine lines[] = {
 		{ "PvInputCurrentForBattery",	0xff0000,	"PvInputCurrentForBattery" },
 		{ "BatteryCurrent",		0x00ff00,	"BatteryCurrent" },
-		{ "BatteryDischargeCurrent",	0x0000ff,	"BatteryDischargeCurrent" },
 		{ "/0/node_solar:current",	CC_SOLAR,	_("Solar Current") },
 		{ "/0/node_battery:current",	CC_BATTERY,	_("Battery Current") },
 		{ "/0/node_utility:current",	CC_UTILITY,	_("Utility Current") },
