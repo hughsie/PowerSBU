@@ -175,7 +175,7 @@ sbu_manager_impl_save_history (SbuManagerImpl *self, const gchar *object_path, c
 	gint value = -1;
 
 	/* boolean */
-	if (g_strcmp0 (propname, "link") == 0) {
+	if (g_strcmp0 (propname, "active") == 0) {
 		gboolean tmp;
 		g_object_get (obj, propname, &tmp, NULL);
 		value = (guint) tmp;
