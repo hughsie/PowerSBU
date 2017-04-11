@@ -458,6 +458,9 @@ egg_graph_widget_get_axis_label (EggGraphWidgetKind axis, gdouble value)
 	} else if (axis == EGG_GRAPH_WIDGET_KIND_CURRENT) {
 		/* TRANSLATORS: This is %.1f Amps*/
 		text = g_strdup_printf (_("%.1fA"), value);
+	} else if (axis == EGG_GRAPH_WIDGET_KIND_TEMPERATURE) {
+		/* TRANSLATORS: This is %.1f Celcius*/
+		text = g_strdup_printf (_("%.1fC"), value);
 	} else if (axis == EGG_GRAPH_WIDGET_KIND_WAVELENGTH) {
 		/* TRANSLATORS: This is %.1f nanometers */
 		text = g_strdup_printf (_("%.0f nm"), value);
@@ -721,6 +724,8 @@ egg_graph_widget_autorange_x (EggGraphWidget *graph)
 		rounding_x = 1000;
 	} else if (priv->type_x == EGG_GRAPH_WIDGET_KIND_CURRENT) {
 		rounding_x = 1;
+	} else if (priv->type_x == EGG_GRAPH_WIDGET_KIND_TEMPERATURE) {
+		rounding_x = 10;
 	} else if (priv->type_x == EGG_GRAPH_WIDGET_KIND_TIME) {
 		if (biggest_x-smallest_x < 150)
 			rounding_x = 150;
@@ -818,6 +823,8 @@ egg_graph_widget_autorange_y (EggGraphWidget *graph)
 		rounding_y = 1000;
 	} else if (priv->type_y == EGG_GRAPH_WIDGET_KIND_CURRENT) {
 		rounding_y = 1;
+	} else if (priv->type_y == EGG_GRAPH_WIDGET_KIND_TEMPERATURE) {
+		rounding_y = 10;
 	} else if (priv->type_y == EGG_GRAPH_WIDGET_KIND_TIME) {
 		if (biggest_y-smallest_y < 150)
 			rounding_y = 150;

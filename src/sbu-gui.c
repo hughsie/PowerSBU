@@ -387,6 +387,25 @@ sbu_gui_history_setup_status (SbuGui *self)
 }
 
 static void
+sbu_gui_history_setup_temperature (SbuGui *self)
+{
+	PowerSBUGraphLine lines[] = {
+		{ "InverterHeatSinkTemperature",	0xff0000,	"Inverter Temperature" },
+		{ "BatteryVoltageOffsetForFans",	0x00ff00,	"BatteryVoltageOffsetForFans" }, //xxx
+		{ NULL,					0x000000,	NULL },
+	};
+	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
+	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
+	g_object_set (self->graph_widget,
+		      "use-legend", FALSE,
+		      "mirror-y", FALSE,
+		      "type-y", EGG_GRAPH_WIDGET_KIND_TEMPERATURE,
+		      "autorange-y", TRUE,
+		      NULL);
+	sbu_gui_history_setup_lines (self, lines);
+}
+
+static void
 sbu_gui_history_refresh_graph (SbuGui *self)
 {
 	GtkListBox *list_box;
@@ -414,6 +433,9 @@ sbu_gui_history_refresh_graph (SbuGui *self)
 		break;
 	case 5:
 		sbu_gui_history_setup_status (self);
+		break;
+	case 6:
+		sbu_gui_history_setup_temperature (self);
 		break;
 	default:
 		break;
@@ -447,12 +469,13 @@ sbu_gui_add_history_item (SbuGui *self, const gchar *title)
 static void
 sbu_gui_refresh_history (SbuGui *self)
 {
-	sbu_gui_add_history_item (self, "Status");
-	sbu_gui_add_history_item (self, "Panel Voltage");
-	sbu_gui_add_history_item (self, "Current Flow");
-	sbu_gui_add_history_item (self, "Power Usage");
-	sbu_gui_add_history_item (self, "Utility Voltage");
-	sbu_gui_add_history_item (self, "Battery Voltage");
+	sbu_gui_add_history_item (self, _("Temperature"));
+	sbu_gui_add_history_item (self, _("Status"));
+	sbu_gui_add_history_item (self, _("Panel Voltage"));
+	sbu_gui_add_history_item (self, _("Current Flow"));
+	sbu_gui_add_history_item (self, _("Power Usage"));
+	sbu_gui_add_history_item (self, _("Utility Voltage"));
+	sbu_gui_add_history_item (self, _("Battery Voltage"));
 }
 
 static SbuNode *
