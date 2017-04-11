@@ -264,10 +264,11 @@ sbu_gui_history_setup_battery_voltage (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", FALSE,
+		      "mirror-y", FALSE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_VOLTAGE,
 		      "autorange-y", FALSE,
-		      "start-y", (gdouble) 20.f,
-		      "stop-y", (gdouble) 30.f,
+		      "start-y", (gdouble) 23.f,
+		      "stop-y", (gdouble) 28.f,
 		      NULL);
 	sbu_gui_history_setup_lines (self, lines);
 }
@@ -284,6 +285,7 @@ sbu_gui_history_setup_mains_voltage (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", TRUE,
+		      "mirror-y", FALSE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_VOLTAGE,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 220.f,
@@ -307,6 +309,7 @@ sbu_gui_history_setup_power_usage (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", TRUE,
+		      "mirror-y", TRUE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_POWER,
 		      "autorange-y", TRUE,
 		      NULL);
@@ -329,6 +332,7 @@ sbu_gui_history_setup_current (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", TRUE,
+		      "mirror-y", TRUE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_CURRENT,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,
@@ -350,6 +354,7 @@ sbu_gui_history_setup_panel_voltage (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", TRUE,
+		      "mirror-y", FALSE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_VOLTAGE,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,
@@ -376,6 +381,7 @@ sbu_gui_history_setup_status (SbuGui *self)
 	egg_graph_widget_data_clear (EGG_GRAPH_WIDGET (self->graph_widget));
 	g_object_set (self->graph_widget,
 		      "use-legend", TRUE,
+		      "mirror-y", FALSE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_FACTOR,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,

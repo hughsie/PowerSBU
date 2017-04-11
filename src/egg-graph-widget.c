@@ -37,6 +37,8 @@ typedef struct {
 	gboolean		 use_legend;
 	gboolean		 autorange_x;
 	gboolean		 autorange_y;
+	gboolean		 mirror_x;
+	gboolean		 mirror_y;
 
 	gdouble			 stop_x;
 	gdouble			 stop_y;
@@ -76,6 +78,8 @@ enum
 	PROP_TYPE_Y,
 	PROP_AUTORANGE_X,
 	PROP_AUTORANGE_Y,
+	PROP_MIRROR_X,
+	PROP_MIRROR_Y,
 	PROP_START_X,
 	PROP_START_Y,
 	PROP_STOP_X,
@@ -156,6 +160,12 @@ up_graph_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec
 	case PROP_AUTORANGE_Y:
 		g_value_set_boolean (value, priv->autorange_y);
 		break;
+	case PROP_MIRROR_X:
+		g_value_set_boolean (value, priv->mirror_x);
+		break;
+	case PROP_MIRROR_Y:
+		g_value_set_boolean (value, priv->mirror_y);
+		break;
 	case PROP_START_X:
 		g_value_set_double (value, priv->start_x);
 		break;
@@ -198,6 +208,12 @@ up_graph_set_property (GObject *object, guint prop_id, const GValue *value, GPar
 		break;
 	case PROP_AUTORANGE_Y:
 		priv->autorange_y = g_value_get_boolean (value);
+		break;
+	case PROP_MIRROR_X:
+		priv->mirror_x = g_value_get_boolean (value);
+		break;
+	case PROP_MIRROR_Y:
+		priv->mirror_y = g_value_get_boolean (value);
 		break;
 	case PROP_START_X:
 		priv->start_x = g_value_get_double (value);
@@ -265,6 +281,16 @@ egg_graph_widget_class_init (EggGraphWidgetClass *class)
 	g_object_class_install_property (object_class,
 					 PROP_AUTORANGE_Y,
 					 g_param_spec_boolean ("autorange-y", NULL, NULL,
+							       TRUE,
+							       G_PARAM_READWRITE));
+	g_object_class_install_property (object_class,
+					 PROP_MIRROR_X,
+					 g_param_spec_boolean ("mirror-x", NULL, NULL,
+							       TRUE,
+							       G_PARAM_READWRITE));
+	g_object_class_install_property (object_class,
+					 PROP_MIRROR_Y,
+					 g_param_spec_boolean ("mirror-y", NULL, NULL,
 							       TRUE,
 							       G_PARAM_READWRITE));
 	g_object_class_install_property (object_class,
@@ -804,16 +830,6 @@ egg_graph_widget_autorange_y (EggGraphWidget *graph)
 	priv->start_y = egg_graph_round_down (smallest_y, rounding_y);
 	priv->stop_y = egg_graph_round_up (biggest_y, rounding_y);
 
-	/* a factor graph is centered around zero if there are negative and
-	 * positive parts */
-	if (priv->start_y < 0.f && priv->stop_y > 0.f &&
-	    priv->type_y == EGG_GRAPH_WIDGET_KIND_FACTOR) {
-		if (abs (priv->stop_y) > abs (priv->start_y))
-			priv->start_y = -priv->stop_y;
-		else
-			priv->stop_y = -priv->start_y;
-	}
-
 	g_debug ("Processed(1) range is %.1f<y<%.1f",
 		   priv->start_y, priv->stop_y);
 
@@ -1105,6 +1121,14 @@ egg_graph_widget_draw (GtkWidget *widget, cairo_t *cr)
 		egg_graph_widget_autorange_x (graph);
 	if (priv->autorange_y)
 		egg_graph_widget_autorange_y (graph);
+
+	/* graph is centered around zero */
+	if (priv->mirror_y) {
+		if (abs (priv->stop_y) > abs (priv->start_y))
+			priv->start_y = -priv->stop_y;
+		else
+			priv->stop_y = -priv->start_y;
+	}
 
 	priv->box_x = egg_graph_widget_get_y_label_max_width (graph, cr) + 10;
 	priv->box_y = 5;
