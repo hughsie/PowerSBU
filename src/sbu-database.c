@@ -123,6 +123,7 @@ sbu_database_repair (SbuDatabase *self, GError **error)
 		"MaximumPowerPercentage",
 		"AcOutputActivePower",
 		"BusVoltage",
+		"PvChargingPower",
 		NULL };
 
 	/* delete ignored keys */

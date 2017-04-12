@@ -58,17 +58,6 @@ msx_device_update_node_battery_power (SbuDeviceImpl *device, MsxDevice *msx_devi
 }
 
 static void
-msx_device_update_node_solar_power (SbuDeviceImpl *device, MsxDevice *msx_device)
-{
-	gint v = msx_device_get_value (msx_device, MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC);
-	gint a = msx_device_get_value (msx_device, MSX_DEVICE_KEY_PV_INPUT_CURRENT_FOR_BATTERY);
-	sbu_device_impl_set_node_value (device,
-					SBU_NODE_KIND_SOLAR,
-					SBU_DEVICE_PROPERTY_POWER,
-					msx_vals_to_double (v, a));
-}
-
-static void
 msx_device_update_link_solar_load (SbuDeviceImpl *device, MsxDevice *msx_device)
 {
 	gint src_prio = msx_device_get_value (msx_device, MSX_DEVICE_KEY_OUTPUT_SOURCE_PRIORITY);
@@ -286,12 +275,16 @@ msx_device_changed_cb (MsxDevice *msx_device,
 						SBU_NODE_KIND_SOLAR,
 						SBU_DEVICE_PROPERTY_CURRENT,
 						msx_val_to_double (value));
-		msx_device_update_node_solar_power (device, msx_device);
 		break;
 	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_FROM_SCC:
 		msx_device_update_node_solar_voltage (device, msx_device);
-		msx_device_update_node_solar_power (device, msx_device);
 		msx_device_update_link_solar_load (device, msx_device);
+		break;
+	case MSX_DEVICE_KEY_PV_CHARGING_POWER:
+		sbu_device_impl_set_node_value (device,
+						SBU_NODE_KIND_SOLAR,
+						SBU_DEVICE_PROPERTY_POWER,
+						msx_val_to_double (value));
 		break;
 	case MSX_DEVICE_KEY_BATTERY_DISCHARGE_CURRENT:
 		sbu_device_impl_set_node_value (device,
@@ -359,7 +352,6 @@ msx_device_changed_cb (MsxDevice *msx_device,
 	case MSX_DEVICE_KEY_FAULT_CODE_RECORD:
 	case MSX_DEVICE_KEY_BATTERY_VOLTAGE_OFFSET_FOR_FANS:
 	case MSX_DEVICE_KEY_EEPROM_VERSION:
-	case MSX_DEVICE_KEY_PV_CHARGING_POWER:
 	case MSX_DEVICE_KEY_CHARGING_TO_FLOATING_MODE:
 	case MSX_DEVICE_KEY_SWITCH_ON:
 		g_debug ("key %s=%i not handled",
