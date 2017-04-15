@@ -419,6 +419,7 @@ sbu_gui_history_setup_status (SbuGui *self)
 		{ "ChargingOn",				0xff0000,	"ChargingOn" },
 		{ "ChargingOnSolar",			0x00ff00,	"ChargingOnSolar" },
 		{ "ChargingOnAC",			0x0000ff,	"ChargingOnAC" },
+		{ "ChargingToFloatingMode",		0xffffff,	"ChargingToFloatingMode" },
 		{ "/0/link_solar_battery:active",	CC_SOLAR,	_("Solar ⇢ Battery") },
 		{ "/0/link_battery_load:active",	CC_BATTERY,	_("Battery ⇢ Load") },
 		{ "/0/link_utility_battery:active",	0xcc00cc,	_("Utility ⇢ Battery") },
