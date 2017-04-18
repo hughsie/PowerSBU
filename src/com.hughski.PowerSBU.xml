@@ -48,6 +48,7 @@
       <arg name="key" direction="in" type="s"/>
       <arg name="start" direction="in" type="t"/>
       <arg name="end" direction="in" type="t"/>
+      <arg name="limit" direction="in" type="u"/>
       <arg name="data" direction="out" type="a(td)"/>
     </method>
   </interface>

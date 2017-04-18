@@ -198,72 +198,35 @@ sbu_gui_refresh_details (SbuGui *self)
 static GPtrArray *
 mxs_gui_get_graph_data (SbuGui *self, const gchar *key, guint32 color, GError **error)
 {
-	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
+	GVariantIter iter;
+	gdouble val;
+	guint64 now = g_get_real_time () / G_USEC_PER_SEC;
+	guint64 ts;
+	guint limit = 0;
 	g_autoptr(GPtrArray) data = NULL;
-	g_autoptr(GPtrArray) results = NULL;
-	g_autoptr(GPtrArray) results2 = NULL;
+	g_autoptr(GVariant) reply = NULL;
 
-	results = sbu_database_query (self->database,
-				      key,
-				      SBU_DEVICE_ID_DEFAULT,
-				      now - self->history_interval,
-				      now,
-				      error);
-	if (results == NULL)
-		return NULL;
-
-	/* limit the number of results */
-	if (self->history_filter == 0) {
-		results2 = g_ptr_array_ref (results);
-	} else {
-		gint ts_last_added = 0;
-		guint ave_cnt = 0;
-		gdouble ave_acc = 0;
-		gint64 interval = self->history_interval / (100 / self->history_filter);
-
-		results2 = g_ptr_array_new_with_free_func (g_free);
-		for (guint i = 0; i < results->len; i++) {
-			SbuDatabaseItem *item = g_ptr_array_index (results, i);
-
-			if (ts_last_added == 0)
-				ts_last_added = item->ts;
-
-			/* first and last points */
-			if (i == 0 || i == results->len - 1) {
-				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
-				item2->ts = item->ts;
-				item2->val = item->val;
-				g_ptr_array_add (results2, item2);
-				continue;
-			}
-
-			/* add to moving average */
-			ave_acc += item->val;
-			ave_cnt += 1;
-
-			/* more than the interval */
-			if (item->ts - ts_last_added > interval) {
-				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
-				item2->ts = item->ts;
-				item2->val = ave_acc / (gdouble) ave_cnt;
-				g_ptr_array_add (results2, item2);
-				ts_last_added = item->ts;
-
-				/* reset moving average */
-				ave_cnt = 0;
-				ave_acc = 0.f;
-			}
-		}
+	/* query daemon */
+	if (self->history_filter > 0)
+		limit = 100 / self->history_filter;
+	if (!sbu_device_call_get_history_sync (self->device,
+					       key,
+					       now - self->history_interval,
+					       now, limit,
+					       &reply,
+					       self->cancellable,
+					       error)) {
+		g_prefix_error (error, "Cannot get history: ");
+		return FALSE;
 	}
 
+	/* create data for graph */
 	data = g_ptr_array_new_with_free_func ((GDestroyNotify) egg_graph_point_free);
-	for (guint i = 0; i < results2->len; i++) {
-		SbuDatabaseItem *item = g_ptr_array_index (results2, i);
+	g_variant_iter_init (&iter, reply);
+	while (g_variant_iter_next (&iter, "(td)", &ts, &val)) {
 		EggGraphPoint *point = egg_graph_point_new ();
-		point->x = item->ts - now;
-		point->y = (gdouble) item->val;
-		if (fabs (point->y) > 1.1f)
-			point->y /= 1000.f;
+		point->x = ts + self->history_interval - now;
+		point->y = val;
 		point->color = color;
 		g_ptr_array_add (data, point);
 	}
@@ -310,7 +273,7 @@ static void
 sbu_gui_history_setup_battery_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "/0/node_battery:voltage",	CC_BATTERY,	_("Battery Voltage") },
+		{ "node_battery:voltage",	CC_BATTERY,	_("Battery Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -320,8 +283,8 @@ sbu_gui_history_setup_battery_voltage (SbuGui *self)
 		      "mirror-y", FALSE,
 		      "type-y", EGG_GRAPH_WIDGET_KIND_VOLTAGE,
 		      "autorange-y", FALSE,
-		      "start-y", (gdouble) 23.f,
-		      "stop-y", (gdouble) 28.f,
+		      "start-y", (gdouble) 22.f,
+		      "stop-y", (gdouble) 30.f,
 		      NULL);
 	sbu_gui_history_setup_lines (self, lines);
 }
@@ -330,8 +293,8 @@ static void
 sbu_gui_history_setup_mains_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "/0/node_utility:voltage",	CC_UTILITY,	_("Utility Voltage") },
-		{ "/0/node_load:voltage",	CC_LOAD,	_("Load Voltage") },
+		{ "node_utility:voltage",	CC_UTILITY,	_("Utility Voltage") },
+		{ "node_load:voltage",		CC_LOAD,	_("Load Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -351,10 +314,10 @@ static void
 sbu_gui_history_setup_power_usage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "/0/node_solar:power",	CC_SOLAR,	_("Solar Power") },
-		{ "/0/node_battery:power",	CC_BATTERY,	_("Battery Power") },
-		{ "/0/node_utility:power",	CC_UTILITY,	_("Utility Power") },
-		{ "/0/node_load:power",		CC_LOAD,	_("Load Power") },
+		{ "node_solar:power",		CC_SOLAR,	_("Solar Power") },
+		{ "node_battery:power",		CC_BATTERY,	_("Battery Power") },
+		{ "node_utility:power",		CC_UTILITY,	_("Utility Power") },
+		{ "node_load:power",		CC_LOAD,	_("Load Power") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -372,10 +335,10 @@ static void
 sbu_gui_history_setup_current (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
-		{ "/0/node_solar:current",	CC_SOLAR,	_("Solar Current") },
-		{ "/0/node_battery:current",	CC_BATTERY,	_("Battery Current") },
-		{ "/0/node_utility:current",	CC_UTILITY,	_("Utility Current") },
-		{ "/0/node_load:current",	CC_LOAD,	_("Load Current") },
+		{ "node_solar:current",		CC_SOLAR,	_("Solar Current") },
+		{ "node_battery:current",	CC_BATTERY,	_("Battery Current") },
+		{ "node_utility:current",	CC_UTILITY,	_("Utility Current") },
+		{ "node_load:current",		CC_LOAD,	_("Load Current") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -396,7 +359,7 @@ sbu_gui_history_setup_panel_voltage (SbuGui *self)
 {
 	PowerSBUGraphLine lines[] = {
 		{ "PvInputVoltage",		0xff0000,	"PvInputVoltage" },
-		{ "/0/node_solar:voltage",	CC_SOLAR,	_("Solar Voltage") },
+		{ "node_solar:voltage",		CC_SOLAR,	_("Solar Voltage") },
 		{ NULL,				0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));
@@ -420,11 +383,11 @@ sbu_gui_history_setup_status (SbuGui *self)
 		{ "ChargingOnSolar",			0x00ff00,	"ChargingOnSolar" },
 		{ "ChargingOnAC",			0x0000ff,	"ChargingOnAC" },
 		{ "ChargingToFloatingMode",		0xffffff,	"ChargingToFloatingMode" },
-		{ "/0/link_solar_battery:active",	CC_SOLAR,	_("Solar ⇢ Battery") },
-		{ "/0/link_battery_load:active",	CC_BATTERY,	_("Battery ⇢ Load") },
-		{ "/0/link_utility_battery:active",	0xcc00cc,	_("Utility ⇢ Battery") },
-		{ "/0/link_utility_load:active",	CC_UTILITY,	_("Utility ⇢ Load") },
-		{ "/0/link_solar_load:active",		CC_LOAD,	_("Solar ⇢ Load") },
+		{ "link_solar_battery:active",		CC_SOLAR,	_("Solar ⇢ Battery") },
+		{ "link_battery_load:active",		CC_BATTERY,	_("Battery ⇢ Load") },
+		{ "link_utility_battery:active",	0xcc00cc,	_("Utility ⇢ Battery") },
+		{ "link_utility_load:active",		CC_UTILITY,	_("Utility ⇢ Load") },
+		{ "link_solar_load:active",		CC_LOAD,	_("Solar ⇢ Load") },
 		{ NULL,					0x000000,	NULL },
 	};
 	egg_graph_widget_key_legend_clear (EGG_GRAPH_WIDGET (self->graph_widget));

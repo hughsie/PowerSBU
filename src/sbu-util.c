@@ -173,6 +173,55 @@ sbu_util_repair (SbuUtil *self, gchar **values, GError **error)
 }
 
 static gboolean
+sbu_util_query_remote (SbuUtil *self, gchar **values, GError **error)
+{
+	GVariantIter iter;
+	const gchar *object_path = "/com/hughski/PowerSBU/Device/0";
+	gdouble val;
+	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
+	guint64 ts;
+	g_autoptr(GVariant) reply = NULL;
+	g_autoptr(SbuDevice) device = NULL;
+
+	/* check args */
+	if (g_strv_length (values) != 1) {
+		g_set_error_literal (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_INVALID_ARGUMENT,
+				     "Invalid arguments: expected device key");
+		return FALSE;
+	}
+
+	g_print ("Querying device: %s\n", object_path);
+	device = sbu_device_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
+						    G_DBUS_PROXY_FLAGS_NONE,
+						    SBU_DBUS_NAME,
+						    object_path,
+						    self->cancellable,
+						    error);
+	if (device == NULL)
+		return FALSE;
+	if (!sbu_device_call_get_history_sync (device,
+					       values[0],
+					       now - (60 * 60 * 24),
+					       now, 5,
+					       &reply,
+					       self->cancellable,
+					       error)) {
+		g_prefix_error (error, "Cannot get history: ");
+		return FALSE;
+	}
+
+	/* print reply */
+	g_variant_iter_init (&iter, reply);
+	while (g_variant_iter_next (&iter, "(td)", &ts, &val)) {
+		g_print ("%" G_GUINT64_FORMAT "\t%.2f\n", ts, val);
+	}
+
+	return TRUE;
+}
+
+static gboolean
 sbu_util_query (SbuUtil *self, gchar **values, GError **error)
 {
 	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
@@ -414,6 +463,12 @@ main (int argc, char *argv[])
 		      /* TRANSLATORS: command description */
 		      _("Query one device property"),
 		      sbu_util_query);
+	sbu_util_add (self->cmd_array,
+		      "query-remote",
+		      NULL,
+		      /* TRANSLATORS: command description */
+		      _("Query one device property remotely"),
+		      sbu_util_query_remote);
 	sbu_util_add (self->cmd_array,
 		      "repair",
 		      NULL,

@@ -28,6 +28,7 @@ G_BEGIN_DECLS
 #include "generated-gdbus.h"
 
 #include "sbu-common.h"
+#include "sbu-database.h"
 #include "sbu-node-impl.h"
 #include "sbu-link-impl.h"
 
@@ -46,6 +47,8 @@ GPtrArray	*sbu_device_impl_get_node_array		(SbuDeviceImpl	*self);
 GPtrArray	*sbu_device_impl_get_link_array		(SbuDeviceImpl	*self);
 void		 sbu_device_impl_export			(SbuDeviceImpl	*self);
 void		 sbu_device_impl_unexport		(SbuDeviceImpl	*self);
+void		 sbu_device_set_database		(SbuDeviceImpl	*self,
+							 SbuDatabase	*database);
 
 void		 sbu_device_impl_add_node		(SbuDeviceImpl	*self,
 							 SbuNodeImpl	*node);

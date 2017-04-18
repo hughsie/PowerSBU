@@ -21,6 +21,8 @@
 #include "config.h"
 
 #include <glib.h>
+#include <math.h>
+#include <string.h>
 
 #include "sbu-device-impl.h"
 #include "sbu-node-impl.h"
@@ -34,6 +36,7 @@ struct _SbuDeviceImpl
 	gchar				*object_path;
 	GPtrArray			*nodes;
 	GPtrArray			*links;
+	SbuDatabase			*database;
 };
 
 struct _SbuDeviceImplClass
@@ -192,6 +195,134 @@ sbu_device_impl_get_links (SbuDevice *_device,
 	return TRUE;
 }
 
+/* runs in thread dedicated to handling @invocation */
+static gboolean
+sbu_device_impl_get_history (SbuDevice *_device,
+			     GDBusMethodInvocation *invocation,
+			     const gchar *arg_key,
+			     guint64 arg_start,
+			     guint64 arg_end,
+			     guint limit)
+{
+	SbuDeviceImpl *self = SBU_DEVICE_IMPL (_device);
+	GVariantBuilder builder;
+	g_autoptr(GPtrArray) results = NULL;
+	g_autoptr(GPtrArray) results2 = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autoptr(GString) key = g_string_new (NULL);
+	const gchar *device_id_suffix = self->object_path;
+
+	/* sanity check */
+	if (self->database == NULL) {
+		g_dbus_method_invocation_return_error (invocation,
+						       G_IO_ERROR,
+						       G_IO_ERROR_FAILED,
+						       "no database to use");
+		return FALSE;
+	}
+
+	/* clients can query raw keys or those with a prefix */
+	if (g_strstr_len (arg_key, -1, ":") != NULL) {
+		if (g_str_has_prefix (device_id_suffix, SBU_DBUS_PATH_DEVICE))
+			device_id_suffix += strlen (SBU_DBUS_PATH_DEVICE);
+		g_string_printf (key, "%s/%s", device_id_suffix, arg_key);
+	} else {
+		g_string_assign (key, arg_key);
+	}
+
+	/* get all results between the two times */
+	g_debug ("handling GetHistory %s for %" G_GUINT64_FORMAT
+		 "->%" G_GUINT64_FORMAT, key->str, arg_start, arg_end);
+	results = sbu_database_query (self->database,
+				      key->str,
+				      SBU_DEVICE_ID_DEFAULT,
+				      arg_start,
+				      arg_end,
+				      &error);
+	if (results == NULL) {
+		g_dbus_method_invocation_return_gerror (invocation, error);
+		return FALSE;
+	}
+
+	/* no filter */
+	if (limit == 0) {
+		results2 = g_ptr_array_ref (results);
+
+	/* just one value */
+	} else if (limit == 1) {
+		SbuDatabaseItem *item;
+		gdouble ave_acc = 0;
+		gint ts = 0;
+		results2 = g_ptr_array_new_with_free_func (g_free);
+		for (guint i = 0; i < results->len; i++) {
+			item = g_ptr_array_index (results, i);
+			ave_acc += item->val;
+			ts = item->ts;
+		}
+		item = g_new0 (SbuDatabaseItem, 1);
+		item->ts = ts;
+		item->val = ave_acc / results->len;
+		g_ptr_array_add (results2, item);
+
+	/* bin into averaged groups */
+	} else {
+		gint ts_last_added = 0;
+		guint ave_cnt = 0;
+		gdouble ave_acc = 0;
+		gint64 interval = (arg_end - arg_start) / (limit - 1);
+
+		results2 = g_ptr_array_new_with_free_func (g_free);
+		for (guint i = 0; i < results->len; i++) {
+			SbuDatabaseItem *item = g_ptr_array_index (results, i);
+
+			if (ts_last_added == 0)
+				ts_last_added = item->ts;
+
+			/* first and last points */
+			if (i == 0 || i == results->len - 1) {
+				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
+				item2->ts = item->ts;
+				item2->val = item->val;
+				g_ptr_array_add (results2, item2);
+				continue;
+			}
+
+			/* add to moving average */
+			ave_acc += item->val;
+			ave_cnt += 1;
+
+			/* more than the interval */
+			if (item->ts - ts_last_added > interval) {
+				SbuDatabaseItem *item2 = g_new0 (SbuDatabaseItem, 1);
+				item2->ts = item->ts;
+				item2->val = ave_acc / (gdouble) ave_cnt;
+				g_ptr_array_add (results2, item2);
+				ts_last_added = item->ts;
+
+				/* reset moving average */
+				ave_cnt = 0;
+				ave_acc = 0.f;
+			}
+		}
+	}
+
+
+	/* return as a GVariant */
+	g_variant_builder_init (&builder, G_VARIANT_TYPE ("(a(td))"));
+	g_variant_builder_open (&builder, G_VARIANT_TYPE ("a(td)"));
+	for (guint i = 0; i < results2->len; i++) {
+		SbuDatabaseItem *item = g_ptr_array_index (results2, i);
+		gdouble val = item->val;
+		if (fabs (val) > 1.1f)
+			val /= 1000.f;
+		g_variant_builder_add (&builder, "(td)", item->ts, val);
+	}
+	g_variant_builder_close (&builder);
+	g_dbus_method_invocation_return_value (invocation,
+					       g_variant_builder_end (&builder));
+	return TRUE;
+}
+
 void
 sbu_device_impl_add_node (SbuDeviceImpl *self, SbuNodeImpl *node)
 {
@@ -267,6 +398,7 @@ sbu_device_iface_init (SbuDeviceIface *iface)
 {
 	iface->handle_get_nodes = sbu_device_impl_get_nodes;
 	iface->handle_get_links = sbu_device_impl_get_links;
+	iface->handle_get_history = sbu_device_impl_get_history;
 }
 
 static void
@@ -342,6 +474,12 @@ sbu_device_impl_set_object_path (SbuDeviceImpl *self,
 	}
 }
 
+void
+sbu_device_set_database (SbuDeviceImpl *self, SbuDatabase *database)
+{
+	g_set_object (&self->database, database);
+}
+
 static void
 sbu_device_impl_set_property (GObject *object,
 			      guint prop_id,
@@ -370,6 +508,8 @@ sbu_device_impl_finalize (GObject *object)
 {
 	SbuDeviceImpl *self = SBU_DEVICE_IMPL (object);
 	g_free (self->object_path);
+	if (self->database != NULL)
+		g_object_unref (self->database);
 	g_ptr_array_unref (self->nodes);
 	g_ptr_array_unref (self->links);
 	G_OBJECT_CLASS (sbu_device_impl_parent_class)->finalize (object);

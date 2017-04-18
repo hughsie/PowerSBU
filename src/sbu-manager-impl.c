@@ -263,6 +263,7 @@ sbu_manager_impl_plugins_add_device_cb (SbuPlugin *plugin,
 	}
 
 	/* export and save device */
+	sbu_device_set_database (device, self->database);
 	sbu_device_impl_export (device);
 	g_ptr_array_add (self->devices, g_object_ref (device));
 
