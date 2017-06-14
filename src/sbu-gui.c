@@ -349,7 +349,7 @@ sbu_gui_history_setup_current (SbuGui *self)
 		      "type-y", EGG_GRAPH_WIDGET_KIND_CURRENT,
 		      "autorange-y", FALSE,
 		      "start-y", (gdouble) 0.f,
-		      "stop-y", (gdouble) 15.f,
+		      "stop-y", (gdouble) 20.f,
 		      NULL);
 	sbu_gui_history_setup_lines (self, lines);
 }
