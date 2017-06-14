@@ -83,8 +83,22 @@ gmodule = dependency('gmodule-2.0')
 gtk = dependency('gtk+-3.0', version : '>= 3.3.8')
 sqlite3 = dependency('sqlite3')
 appstream_glib = dependency('appstream-glib')
-valgrind = dependency('valgrind')
 libm = cc.find_library('libm', required: false)
+
+if get_option('enable-valgrind')
+  message(meson.version())
+  # urgh, meson is broken
+  if meson.version().version_compare('>0.41.0')
+    valgrind = dependency('valgrind')
+    conf.set('USE_VALGRIND', 1)
+  else
+    message('Valgrind integration disabled to work around a meson bug')
+    valgrind = []
+  endif
+else
+  message('Valgrind integration disabled')
+  valgrind = []
+endif
 
 gnome = import('gnome')
 i18n = import('i18n')
@@ -114,19 +128,21 @@ subdir('data')
 subdir('src')
 subdir('po')
 
-archiver = find_program('git', required : false)
-if archiver.found()
-  run_target('dist',
-    # git config tar.tar.xz.command "xz -c"
-    command: [
-      'git', 'archive',
-      '--prefix=' + meson.project_name() + '-' + meson.project_version() + '/',
-      'HEAD',
-      '--format=tar.xz',
-      '--output',
-      meson.project_name() + '-' + meson.project_version() + '.tar.xz'
-    ]
-  )
-else
-  message('git not found, you will not be able to run `ninja dist`')
+if meson.version().version_compare('<0.41.0')
+  archiver = find_program('git', required : false)
+  if archiver.found()
+    run_target('dist',
+      # git config tar.tar.xz.command "xz -c"
+      command: [
+        'git', 'archive',
+        '--prefix=' + meson.project_name() + '-' + meson.project_version() + '/',
+        'HEAD',
+        '--format=tar.xz',
+        '--output',
+        meson.project_name() + '-' + meson.project_version() + '.tar.xz'
+      ]
+    )
+  else
+    message('git not found, you will not be able to run `ninja dist`')
+  endif
 endif

@@ -21,7 +21,9 @@
 
 #include "config.h"
 
+#ifdef USE_VALGRIND
 #include <valgrind.h>
+#endif
 
 #include "sbu-plugin-private.h"
 #include "sbu-plugin.h"
