@@ -123,9 +123,9 @@ configure_file(
   configuration : conf
 )
 
-subdir('plugins')
 subdir('data')
 subdir('src')
+subdir('plugins')
 subdir('po')
 
 if meson.version().version_compare('<0.41.0')

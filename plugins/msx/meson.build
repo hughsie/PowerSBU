@@ -1,6 +1,7 @@
 cargs = ['-DG_LOG_DOMAIN="SbuPluginMsx"']
 
 shared_module('sbu_plugin_msx',
+  sbu_dbus_src,
   sources : [
     'msx-common.c',
     'msx-context.c',
@@ -14,7 +15,7 @@ shared_module('sbu_plugin_msx',
   install : true,
   install_dir: plugin_dir,
   c_args : cargs,
-  dependencies : [gusb, libm]
+  dependencies : [gusb, libm, gio]
 )
 
 executable(
