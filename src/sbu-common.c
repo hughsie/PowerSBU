@@ -1,20 +1,7 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
- *
+/*
  * Copyright (C) 2017 Richard Hughes <richard@hughsie.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * SPDX-License-Identifier: GPL-2+
  *
  */
 
@@ -26,7 +13,7 @@
 #include "sbu-common.h"
 
 const gchar *
-sbu_node_kind_to_string (SbuNodeKind kind)
+sbu_node_kind_to_string(SbuNodeKind kind)
 {
 	if (kind == SBU_NODE_KIND_UNKNOWN)
 		return "unknown";
@@ -42,7 +29,7 @@ sbu_node_kind_to_string (SbuNodeKind kind)
 }
 
 const gchar *
-sbu_device_property_to_string (SbuDeviceProperty key)
+sbu_device_property_to_string(SbuDeviceProperty key)
 {
 	if (key == SBU_DEVICE_PROPERTY_UNKNOWN)
 		return "unknown";
@@ -64,16 +51,13 @@ sbu_device_property_to_string (SbuDeviceProperty key)
 }
 
 const gchar *
-sbu_device_property_to_unit (SbuDeviceProperty key)
+sbu_device_property_to_unit(SbuDeviceProperty key)
 {
-	if (key == SBU_DEVICE_PROPERTY_VOLTAGE ||
-	    key == SBU_DEVICE_PROPERTY_VOLTAGE_MAX)
+	if (key == SBU_DEVICE_PROPERTY_VOLTAGE || key == SBU_DEVICE_PROPERTY_VOLTAGE_MAX)
 		return "V";
-	if (key == SBU_DEVICE_PROPERTY_POWER ||
-	    key == SBU_DEVICE_PROPERTY_POWER_MAX)
+	if (key == SBU_DEVICE_PROPERTY_POWER || key == SBU_DEVICE_PROPERTY_POWER_MAX)
 		return "W";
-	if (key == SBU_DEVICE_PROPERTY_CURRENT ||
-	    key == SBU_DEVICE_PROPERTY_CURRENT_MAX)
+	if (key == SBU_DEVICE_PROPERTY_CURRENT || key == SBU_DEVICE_PROPERTY_CURRENT_MAX)
 		return "A";
 	if (key == SBU_DEVICE_PROPERTY_FREQUENCY)
 		return "Hz";
@@ -81,9 +65,9 @@ sbu_device_property_to_unit (SbuDeviceProperty key)
 }
 
 gchar *
-sbu_format_for_display (gdouble val, const gchar *suffix)
+sbu_format_for_display(gdouble val, const gchar *suffix)
 {
-	GString *str = g_string_new (NULL);
+	GString *str = g_string_new(NULL);
 	gboolean kilo = FALSE;
 	guint numdigits = 4;
 
@@ -92,26 +76,26 @@ sbu_format_for_display (gdouble val, const gchar *suffix)
 		numdigits++;
 
 	/* big number */
-	if (fabs (val) > 1000) {
+	if (fabs(val) > 1000) {
 		kilo = TRUE;
 		numdigits--;
 		val /= 1000;
 	}
-	g_string_printf (str, "%.1f", val);
+	g_string_printf(str, "%.1f", val);
 
 	/* don't show trailing zeros */
-	if (g_str_has_suffix (str->str, ".0"))
-		g_string_truncate (str, str->len - 2);
+	if (g_str_has_suffix(str->str, ".0"))
+		g_string_truncate(str, str->len - 2);
 
 	/* truncate this down */
 	if (str->len > numdigits)
-		g_string_truncate (str, numdigits);
-	if (g_str_has_suffix (str->str, "."))
-		g_string_truncate (str, str->len - 1);
+		g_string_truncate(str, numdigits);
+	if (g_str_has_suffix(str->str, "."))
+		g_string_truncate(str, str->len - 1);
 	if (suffix != NULL) {
 		if (kilo)
-			g_string_append (str, "k");
-		g_string_append (str, suffix);
+			g_string_append(str, "k");
+		g_string_append(str, suffix);
 	}
-	return g_string_free (str, FALSE);
+	return g_string_free(str, FALSE);
 }

@@ -51,8 +51,6 @@ battery banks and solar panel arrays.
 %{_unitdir}/sbud.service
 %{_mandir}/man1/sbu-util.1.gz
 %{_mandir}/man1/sbu-gui.1.gz
-%{_libdir}/sbu-plugins-1/libsbu_plugin_dummy.so
-%{_libdir}/sbu-plugins-1/libsbu_plugin_msx.so
 
 %changelog
 * #LONGDATE# Richard Hughes <richard@hughsie.com> #VERSION#-0.#BUILD##ALPHATAG#

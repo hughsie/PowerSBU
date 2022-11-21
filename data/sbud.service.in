@@ -5,3 +5,6 @@ Description=SBU Daemon
 Type=dbus
 BusName=com.hughski.PowerSBU
 ExecStart=@LIBEXECDIR@/sbud
+
+[Install]
+WantedBy=multi-user.target

@@ -79,10 +79,8 @@ add_global_link_arguments(
 
 gusb = dependency('gusb')
 gio = dependency('gio-unix-2.0')
-gmodule = dependency('gmodule-2.0')
 gtk = dependency('gtk+-3.0', version : '>= 3.3.8')
 sqlite3 = dependency('sqlite3')
-appstream_glib = dependency('appstream-glib')
 libm = cc.find_library('libm', required: false)
 
 if get_option('enable-valgrind')
@@ -125,7 +123,6 @@ configure_file(
 
 subdir('data')
 subdir('src')
-subdir('plugins')
 subdir('po')
 
 if meson.version().version_compare('<0.41.0')

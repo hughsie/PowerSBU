@@ -7,25 +7,20 @@ sbu_gui_resources = gnome.compile_resources(
   c_name : 'sbu'
 )
 
-sbu_dbus_src = gnome.gdbus_codegen(
-  'generated-gdbus',
-  'com.hughski.PowerSBU.xml',
-  interface_prefix : 'com.hughski.PowerSBU.',
-  object_manager: true,
-  namespace : 'Sbu')
-
 executable(
   'sbu-gui',
   sbu_gui_resources,
   sources : [
     'egg-graph-point.c',
     'egg-graph-widget.c',
+    'sbu-device.c',
+    'sbu-node.c',
+    'sbu-link.c',
     'sbu-common.c',
     'sbu-config.c',
     'sbu-database.c',
     'sbu-gui.c',
     'sbu-xml-modifier.c',
-    sbu_dbus_src
   ],
   include_directories : [
     include_directories('..'),
@@ -33,7 +28,6 @@ executable(
   dependencies : [
     gtk,
     sqlite3,
-    appstream_glib,
     libm,
   ],
   c_args : cargs,
@@ -48,7 +42,6 @@ executable(
     'sbu-config.c',
     'sbu-database.c',
     'sbu-util.c',
-    sbu_dbus_src
   ],
   include_directories : [
     include_directories('..'),
@@ -70,13 +63,16 @@ executable(
     'sbu-common.c',
     'sbu-config.c',
     'sbu-database.c',
-    'sbu-device-impl.c',
-    'sbu-link-impl.c',
-    'sbu-node-impl.c',
-    'sbu-manager-impl.c',
-    'sbu-plugin.c',
+    'sbu-device.c',
+    'sbu-dummy-plugin.c',
+    'sbu-link.c',
     'sbu-main.c',
-    sbu_dbus_src
+    'sbu-manager.c',
+    'sbu-msx-common.c',
+    'sbu-msx-device.c',
+    'sbu-msx-plugin.c',
+    'sbu-node.c',
+    'sbu-plugin.c',
   ],
   include_directories : [
     include_directories('..'),
@@ -85,7 +81,6 @@ executable(
     gio,
     gusb,
     sqlite3,
-    gmodule,
     libm,
     valgrind,
   ],
@@ -100,8 +95,8 @@ if get_option('enable-tests')
     sources : [
       'sbu-common.c',
       'sbu-database.c',
+      'sbu-msx-common.c',
       'sbu-self-test.c',
-      'sbu-xml-modifier.c',
     ],
     include_directories : [
       include_directories('..'),
